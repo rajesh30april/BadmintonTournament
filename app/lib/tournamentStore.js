@@ -1,0 +1,324 @@
+import {
+  createTournament as createMock,
+  deleteTournament as deleteMock,
+  getTournament as getMock,
+  listTournaments as listMock,
+  updateTournament as updateMock,
+} from "./mockDb";
+import { buildMatchRows, buildMatchTypeOptions, slug } from "./tournament";
+
+const useMock = () => process.env.USE_MOCK_DB === "true";
+const DUPLICATE_NAME_CODE = "DUPLICATE_TOURNAMENT_NAME";
+
+class DuplicateTournamentNameError extends Error {
+  constructor(name) {
+    super(`Tournament name already exists: ${name}`);
+    this.name = "DuplicateTournamentNameError";
+    this.code = DUPLICATE_NAME_CODE;
+    this.tournamentName = name;
+  }
+}
+
+export function isDuplicateNameError(error) {
+  return error?.code === DUPLICATE_NAME_CODE;
+}
+
+const getPrisma = async () => {
+  const mod = await import("./db");
+  return mod.prisma;
+};
+
+export async function listTournaments() {
+  if (useMock()) return listMock();
+  const prisma = await getPrisma();
+  const items = await prisma.tournament.findMany({
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      name: true,
+      createdBy: true,
+      updatedBy: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+  return items;
+}
+
+export async function getTournament(id) {
+  if (!id) return null;
+  if (useMock()) {
+    const found = getMock(id);
+    if (found) return found;
+    const list = listMock();
+    return list.find((t) => t.id === id) || null;
+  }
+  const prisma = await getPrisma();
+  const record = await prisma.tournament.findUnique({
+    where: { id },
+    include: {
+      categories: true,
+      matchTypes: true,
+      teams: { include: { players: true } },
+      results: true,
+    },
+  });
+  if (!record) return null;
+  const scores = buildScores(record.results);
+  return {
+    id: record.id,
+    name: record.name,
+    createdBy: record.createdBy || null,
+    updatedBy: record.updatedBy || null,
+    categories: record.categories.map((c) => ({ key: c.key, count: c.count })),
+    matchTypeConfig: record.matchTypes.reduce((acc, mt) => {
+      acc[mt.typeKey] = mt.count;
+      return acc;
+    }, {}),
+    teams: record.teams.map((t) => ({
+      name: t.name,
+      owner: t.owner || "",
+      players: t.players.map((p) => ({
+        category: p.category,
+        rank: p.rank,
+        name: p.name || "",
+      })),
+    })),
+    scores,
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt,
+  };
+}
+
+export async function createTournament(payload) {
+  const data = normalizePayload(payload);
+  if (await isDuplicateName(data.name)) {
+    throw new DuplicateTournamentNameError(data.name);
+  }
+  if (useMock()) return createMock(data);
+  const prisma = await getPrisma();
+  const created = await prisma.$transaction(async (tx) => {
+    const tournament = await tx.tournament.create({
+      data: {
+        name: data.name,
+        createdBy: data.createdBy || null,
+        updatedBy: data.updatedBy || data.createdBy || null,
+      },
+    });
+    await insertRelated(tx, tournament.id, data);
+    return tournament;
+  });
+  return getTournament(created.id);
+}
+
+export async function updateTournament(id, payload) {
+  if (!id) return null;
+  const data = normalizePayload(payload);
+  if (useMock()) {
+    const existing = getMock(id);
+    if (!existing) return null;
+    if (await isDuplicateName(data.name, id)) {
+      throw new DuplicateTournamentNameError(data.name);
+    }
+    return updateMock(id, data);
+  }
+  const prisma = await getPrisma();
+  const existing = await prisma.tournament.findUnique({
+    where: { id },
+    select: { id: true },
+  });
+  if (!existing) return null;
+  if (await isDuplicateName(data.name, id, prisma)) {
+    throw new DuplicateTournamentNameError(data.name);
+  }
+  const updated = await prisma.$transaction(async (tx) => {
+    await tx.matchResult.deleteMany({ where: { tournamentId: id } });
+    await tx.matchRow.deleteMany({ where: { tournamentId: id } });
+    await tx.fixture.deleteMany({ where: { tournamentId: id } });
+    await tx.player.deleteMany({
+      where: { team: { tournamentId: id } },
+    });
+    await tx.team.deleteMany({ where: { tournamentId: id } });
+    await tx.category.deleteMany({ where: { tournamentId: id } });
+    await tx.matchTypeConfig.deleteMany({ where: { tournamentId: id } });
+    await tx.tournament.update({
+      where: { id },
+      data: { name: data.name, updatedBy: data.updatedBy || null },
+    });
+    await insertRelated(tx, id, data);
+    return true;
+  });
+  if (!updated) return null;
+  return getTournament(id);
+}
+
+export async function deleteTournament(id) {
+  if (!id) return false;
+  if (useMock()) return deleteMock(id);
+  const prisma = await getPrisma();
+  const deleted = await prisma.tournament
+    .delete({ where: { id } })
+    .catch(() => null);
+  return Boolean(deleted);
+}
+
+function normalizePayload(payload) {
+  return {
+    name: payload?.name || "Untitled Tournament",
+    categories: Array.isArray(payload?.categories) ? payload.categories : [],
+    matchTypeConfig: payload?.matchTypeConfig || {},
+    teams: Array.isArray(payload?.teams) ? payload.teams : [],
+    scores: payload?.scores || {},
+    createdBy: payload?.createdBy || null,
+    updatedBy: payload?.updatedBy || null,
+  };
+}
+
+function normalizeTournamentName(name) {
+  return (name || "").trim().toLowerCase();
+}
+
+async function isDuplicateName(name, excludeId, prismaOverride) {
+  const target = normalizeTournamentName(name);
+  if (!target) return false;
+  if (useMock()) {
+    return listMock().some(
+      (t) => t.id !== excludeId && normalizeTournamentName(t.name) === target
+    );
+  }
+  const prisma = prismaOverride || (await getPrisma());
+  const existing = await prisma.tournament.findMany({
+    select: { id: true, name: true },
+  });
+  return existing.some(
+    (t) => t.id !== excludeId && normalizeTournamentName(t.name) === target
+  );
+}
+
+async function insertRelated(tx, tournamentId, data) {
+  const categories = data.categories.map((c) => ({
+    tournamentId,
+    key: slug(c.key),
+    count: Number(c.count || 0),
+  }));
+  if (categories.length) {
+    await tx.category.createMany({ data: categories });
+  }
+
+  const matchTypes = Object.entries(data.matchTypeConfig).map(([typeKey, count]) => ({
+    tournamentId,
+    typeKey,
+    count: Number(count || 0),
+  }));
+  if (matchTypes.length) {
+    await tx.matchTypeConfig.createMany({ data: matchTypes });
+  }
+
+  const teamIdByName = new Map();
+  for (const t of data.teams) {
+    const team = await tx.team.create({
+      data: {
+        tournamentId,
+        name: t.name,
+        owner: t.owner || "",
+      },
+    });
+    teamIdByName.set(t.name, team.id);
+    const players = (t.players || []).map((p) => ({
+      teamId: team.id,
+      category: p.category,
+      rank: p.rank,
+      name: p.name || "",
+    }));
+    if (players.length) {
+      await tx.player.createMany({ data: players });
+    }
+  }
+
+  const fixtures = buildFixtures(data.teams);
+  if (fixtures.length) {
+    await tx.fixture.createMany({
+      data: fixtures.map((f) => ({
+        tournamentId,
+        key: f.key,
+        t1: f.t1,
+        t2: f.t2,
+      })),
+    });
+  }
+
+  const matchTypeOptions = buildMatchTypeOptions(data.categories);
+  const matchRows = buildMatchRows(matchTypeOptions, data.matchTypeConfig).map(
+    (row) => ({
+      tournamentId,
+      rowNo: row.id,
+      typeKey: row.typeKey,
+      typeLabel: row.label,
+      catA: row.categories[0],
+      catB: row.categories[1],
+    })
+  );
+  if (matchRows.length) {
+    await tx.matchRow.createMany({ data: matchRows });
+  }
+
+  const results = buildResultsFromScores(tournamentId, data.scores);
+  if (results.length) {
+    await tx.matchResult.createMany({ data: results });
+  }
+}
+
+function buildFixtures(teams) {
+  const list = [];
+  for (let i = 0; i < teams.length; i++) {
+    for (let j = i + 1; j < teams.length; j++) {
+      list.push({
+        key: `${teams[i].name} vs ${teams[j].name}`,
+        t1: teams[i].name,
+        t2: teams[j].name,
+      });
+    }
+  }
+  return list;
+}
+
+function buildResultsFromScores(tournamentId, scores) {
+  const results = [];
+  if (!scores || typeof scores !== "object") return results;
+  for (const fixtureKey of Object.keys(scores)) {
+    const rows = scores[fixtureKey] || {};
+    for (const rowNo of Object.keys(rows)) {
+      const row = rows[rowNo] || {};
+      results.push({
+        tournamentId,
+        fixtureKey,
+        rowNo: Number(rowNo),
+        t1Player1: row.t1Player1 || null,
+        t1Player2: row.t1Player2 || null,
+        t2Player1: row.t2Player1 || null,
+        t2Player2: row.t2Player2 || null,
+        t1Score: row.t1 === "" ? null : Number(row.t1),
+        t2Score: row.t2 === "" ? null : Number(row.t2),
+        winner: row.winner || null,
+      });
+    }
+  }
+  return results;
+}
+
+function buildScores(results) {
+  const scores = {};
+  for (const r of results || []) {
+    if (!scores[r.fixtureKey]) scores[r.fixtureKey] = {};
+    scores[r.fixtureKey][r.rowNo] = {
+      t1Player1: r.t1Player1 || "",
+      t1Player2: r.t1Player2 || "",
+      t2Player1: r.t2Player1 || "",
+      t2Player2: r.t2Player2 || "",
+      t1: r.t1Score ?? "",
+      t2: r.t2Score ?? "",
+      winner: r.winner || "",
+    };
+  }
+  return scores;
+}

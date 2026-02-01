@@ -1,0 +1,115 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider          = "sqlserver"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+
+model Tournament {
+  id         String            @id @default(cuid())
+  name       String
+  createdBy  String?           @db.NVarChar(80)
+  updatedBy  String?           @db.NVarChar(80)
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+  categories Category[]
+  fixtures   Fixture[]
+  results    MatchResult[]
+  matchRows  MatchRow[]
+  matchTypes MatchTypeConfig[]
+  teams      Team[]
+}
+
+model UserAccount {
+  id           String   @id @default(cuid())
+  username     String   @unique @db.NVarChar(80)
+  passwordHash String   @db.NVarChar(255)
+  role         String   @default("user") @db.NVarChar(20)
+  access       String   @default("read") @db.NVarChar(20)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Category {
+  id           String     @id @default(cuid())
+  tournamentId String
+  key          String     @db.NVarChar(20)
+  count        Int
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, key])
+}
+
+model MatchTypeConfig {
+  id           String     @id @default(cuid())
+  tournamentId String
+  typeKey      String     @db.NVarChar(20)
+  count        Int
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, typeKey])
+}
+
+model Team {
+  id           String     @id @default(cuid())
+  tournamentId String
+  name         String     @db.NVarChar(80)
+  owner        String?    @db.NVarChar(80)
+  players      Player[]
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, name])
+}
+
+model Player {
+  id       String  @id @default(cuid())
+  teamId   String
+  category String  @db.NVarChar(20)
+  rank     String  @db.NVarChar(20)
+  name     String? @db.NVarChar(80)
+  team     Team    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+}
+
+model Fixture {
+  id           String     @id @default(cuid())
+  tournamentId String
+  key          String     @db.NVarChar(200)
+  t1           String     @db.NVarChar(80)
+  t2           String     @db.NVarChar(80)
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, key])
+}
+
+model MatchRow {
+  id           String     @id @default(cuid())
+  tournamentId String
+  rowNo        Int
+  typeKey      String     @db.NVarChar(20)
+  typeLabel    String     @db.NVarChar(20)
+  catA         String     @db.NVarChar(20)
+  catB         String     @db.NVarChar(20)
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, rowNo])
+}
+
+model MatchResult {
+  id           String     @id @default(cuid())
+  tournamentId String
+  fixtureKey   String     @db.NVarChar(200)
+  rowNo        Int
+  t1Player1    String?    @db.NVarChar(20)
+  t1Player2    String?    @db.NVarChar(20)
+  t2Player1    String?    @db.NVarChar(20)
+  t2Player2    String?    @db.NVarChar(20)
+  t1Score      Int?
+  t2Score      Int?
+  winner       String?    @db.NVarChar(10)
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, fixtureKey, rowNo])
+}
