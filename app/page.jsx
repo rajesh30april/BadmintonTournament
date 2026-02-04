@@ -337,22 +337,14 @@ export default function Page() {
         onMenu={() => setMenuOpen(true)}
       />
       <div className="sticky top-[54px] z-20 bg-slate-50/95 px-4 py-3 border-b border-slate-200">
-        <div className="grid grid-cols-2 items-center gap-2">
+        <div className="grid grid-cols-1 items-center">
           <button
             type="button"
-            onClick={goBack}
-            disabled={!canGoBack}
-            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+            onClick={updateTournament}
+            disabled={!canUpdate || savingTournament}
+            className="w-full rounded-2xl bg-slate-900 px-8 py-3 text-base font-semibold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
           >
-            ← Back
-          </button>
-          <button
-            type="button"
-            onClick={goNext}
-            disabled={!canGoNext}
-            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            Next →
+            {savingTournament ? "Saving..." : "Save"}
           </button>
         </div>
       </div>
@@ -409,7 +401,7 @@ export default function Page() {
         </nav>
       </aside>
 
-      <div className="p-4 grid gap-4">
+      <div className="p-4 grid gap-4 pb-20">
         {tab === "setup" && (
           <SetupSection
             tournamentName={tournamentName}
@@ -487,6 +479,27 @@ export default function Page() {
         {tab === "reports" && (
           <ReportsSection fixtures={fixtures} scores={scores} teams={teams} />
         )}
+      </div>
+
+      <div className="fixed bottom-0 left-0 right-0 z-20 bg-slate-50/95 px-4 py-3 border-t border-slate-200">
+        <div className="grid grid-cols-2 items-center gap-2">
+          <button
+            type="button"
+            onClick={goBack}
+            disabled={!canGoBack}
+            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            ← Back
+          </button>
+          <button
+            type="button"
+            onClick={goNext}
+            disabled={!canGoNext}
+            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Next →
+          </button>
+        </div>
       </div>
 
     </div>
