@@ -40,45 +40,53 @@ export default function SetupSection({
   return (
     <Card>
       <CardContent className="grid gap-4">
-        <div className="grid gap-2">
-          <div className="text-sm font-extrabold">Tournaments</div>
-          <div className="grid grid-cols-2 gap-2">
-            <Select
-              value={selectedTournamentId}
-              onChange={(e) => setSelectedTournamentId(e.target.value)}
-            >
-              <option value="">Select tournament</option>
-              {tournaments.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name || t.id}
-                </option>
-              ))}
-            </Select>
-            <Button variant="outline" onClick={onRefreshTournaments} disabled={loadingTournaments}>
-              {loadingTournaments ? "Refreshing..." : "Refresh"}
-            </Button>
-          </div>
-          <div className="grid grid-cols-1 gap-2">
-            <Button variant="outline" onClick={onLoadTournament} disabled={!selectedTournamentId}>
-              Load
-            </Button>
-          </div>
-          {selectedTournament?.updatedBy ? (
-            <div className="text-xs text-slate-500">
-              Last saved by <b>{selectedTournament.updatedBy}</b>
+        <details className="rounded-2xl border border-slate-200 bg-white p-4" open>
+          <summary className="cursor-pointer text-sm font-extrabold text-slate-900">
+            Tournaments
+          </summary>
+          <div className="mt-3 grid gap-2">
+            <div className="grid grid-cols-2 gap-2">
+              <Select
+                value={selectedTournamentId}
+                onChange={(e) => setSelectedTournamentId(e.target.value)}
+              >
+                <option value="">Select tournament</option>
+                {tournaments.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name || t.id}
+                  </option>
+                ))}
+              </Select>
+              <Button
+                variant="outline"
+                onClick={onRefreshTournaments}
+                disabled={loadingTournaments}
+              >
+                {loadingTournaments ? "Refreshing..." : "Refresh"}
+              </Button>
             </div>
-          ) : null}
-          {readOnly ? (
-            <div className="text-xs text-amber-600">
-              Read-only access. Ask admin to enable write access.
+            <div className="grid grid-cols-1 gap-2">
+              <Button variant="outline" onClick={onLoadTournament} disabled={!selectedTournamentId}>
+                Load
+              </Button>
             </div>
-          ) : null}
-          {loadingSelectedTournament ? (
-            <div className="text-xs text-slate-500">Loading tournament...</div>
-          ) : null}
-          {loadError ? <div className="text-xs text-red-600">{loadError}</div> : null}
-          {loadSuccess ? <div className="text-xs text-emerald-600">{loadSuccess}</div> : null}
-        </div>
+            {selectedTournament?.updatedBy ? (
+              <div className="text-xs text-slate-500">
+                Last saved by <b>{selectedTournament.updatedBy}</b>
+              </div>
+            ) : null}
+            {readOnly ? (
+              <div className="text-xs text-amber-600">
+                Read-only access. Ask admin to enable write access.
+              </div>
+            ) : null}
+            {loadingSelectedTournament ? (
+              <div className="text-xs text-slate-500">Loading tournament...</div>
+            ) : null}
+            {loadError ? <div className="text-xs text-red-600">{loadError}</div> : null}
+            {loadSuccess ? <div className="text-xs text-emerald-600">{loadSuccess}</div> : null}
+          </div>
+        </details>
 
         <div>
           <div className="text-xl font-extrabold">Setup</div>
@@ -87,24 +95,30 @@ export default function SetupSection({
           </div>
         </div>
 
-        <div>
-          <div className="text-sm font-bold mb-2">Tournament Name</div>
-          <Input
-            value={tournamentName}
-            onChange={(e) => setTournamentName(e.target.value)}
-            placeholder="Ex: Friday League"
-          />
-        </div>
+        <details className="rounded-2xl border border-slate-200 bg-white p-4" open>
+          <summary className="cursor-pointer text-sm font-extrabold text-slate-900">
+            Tournament Name
+          </summary>
+          <div className="mt-3">
+            <Input
+              value={tournamentName}
+              onChange={(e) => setTournamentName(e.target.value)}
+              placeholder="Ex: Friday League"
+            />
+          </div>
+        </details>
 
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-sm font-extrabold">Player Categories (Global)</div>
+        <details className="rounded-2xl border border-slate-200 bg-white p-4" open>
+          <summary className="cursor-pointer text-sm font-extrabold text-slate-900">
+            Player Categories (Global)
+          </summary>
+          <div className="mt-3 flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500">
               {categories.length} configured
             </span>
           </div>
 
-          <div className="border rounded-2xl bg-white overflow-hidden">
+          <div className="mt-2 border rounded-2xl bg-white overflow-hidden">
             <div className="grid grid-cols-3 gap-2 px-3 py-2 text-xs font-extrabold bg-slate-50 border-b">
               <div>Category</div>
               <div>Count / Team</div>
@@ -182,22 +196,22 @@ export default function SetupSection({
                 : "(add categories)"}
             </b>
           </div>
-        </div>
+        </details>
 
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-sm font-extrabold">Match Type Counts</div>
-            <span className="text-xs font-bold text-slate-500">
-              Set 0 to disable (ex: BB = 0)
-            </span>
+        <details className="rounded-2xl border border-slate-200 bg-white p-4" open>
+          <summary className="cursor-pointer text-sm font-extrabold text-slate-900">
+            Match Type Counts
+          </summary>
+          <div className="mt-3 text-xs font-bold text-slate-500">
+            Set 0 to disable (ex: BB = 0)
           </div>
 
           {matchTypeOptions.length === 0 ? (
-            <div className="px-4 py-3 text-sm text-slate-600 border rounded-2xl bg-white">
+            <div className="mt-2 px-4 py-3 text-sm text-slate-600 border rounded-2xl bg-white">
               Add categories to configure match types.
             </div>
           ) : (
-            <div className="border rounded-2xl bg-white overflow-hidden">
+            <div className="mt-2 border rounded-2xl bg-white overflow-hidden">
               <div className="grid grid-cols-2 gap-2 px-3 py-2 text-xs font-extrabold bg-slate-50 border-b">
                 <div>Type</div>
                 <div className="text-right">Count / Fixture</div>
@@ -222,17 +236,19 @@ export default function SetupSection({
               ))}
             </div>
           )}
-        </div>
+        </details>
 
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-sm font-extrabold">Teams</div>
+        <details className="rounded-2xl border border-slate-200 bg-white p-4" open>
+          <summary className="cursor-pointer text-sm font-extrabold text-slate-900">
+            Teams
+          </summary>
+          <div className="mt-3 flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500">
               {teams.length} teams • {totalPlayers} players
             </span>
           </div>
 
-          <div className="flex gap-2">
+          <div className="mt-2 flex gap-2">
             <Input
               placeholder={categories.length ? "Team name" : "Add categories first"}
               value={newTeamName}
@@ -257,7 +273,7 @@ export default function SetupSection({
           ) : (
             <div className="mt-3 text-xs text-slate-500">No teams added yet.</div>
           )}
-        </div>
+        </details>
 
         <div className="hidden" />
       </CardContent>
