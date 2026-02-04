@@ -10,7 +10,6 @@ import {
 import SetupSection from "./components/tournament/SetupSection";
 import TeamsSection from "./components/tournament/TeamsSection";
 import MatchesSection from "./components/tournament/MatchesSection";
-import ScoreSection from "./components/tournament/ScoreSection";
 import StandingsSection from "./components/tournament/StandingsSection";
 import HeaderBar from "./components/tournament/HeaderBar";
 import ReportsSection from "./components/tournament/ReportsSection";
@@ -246,7 +245,7 @@ export default function Page() {
   const canUpdate =
     Boolean(selectedTournamentId) &&
     (currentUser?.role === "admin" || currentUser?.access === "write");
-  const tabs = ["setup", "teams", "matches", "score", "standings", "reports"];
+  const tabs = ["setup", "teams", "matches", "standings", "reports"];
   const tabIndex = Math.max(0, tabs.indexOf(tab));
   const canGoBack = tabIndex > 0;
   const canGoNext = tabIndex < tabs.length - 1;
@@ -391,8 +390,6 @@ export default function Page() {
                 ? "Teams"
                 : t === "matches"
                 ? "Matches"
-                : t === "score"
-                ? "Score"
                 : t === "standings"
                 ? "Standing"
                 : "Reports"}
@@ -455,17 +452,8 @@ export default function Page() {
             selectedMatch={selectedMatch}
             onSelectMatch={(key) => {
               setSelectedMatch(key);
-              setTab("score");
             }}
-          />
-        )}
-
-        {tab === "score" && (
-          <ScoreSection
-            fixtures={fixtures}
             teams={teams}
-            selectedMatch={selectedMatch}
-            setSelectedMatch={setSelectedMatch}
             matchTypeOptions={matchTypeOptions}
             matchTypeConfig={matchTypeConfig}
             matchRows={matchRows}

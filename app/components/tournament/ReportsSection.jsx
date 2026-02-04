@@ -1,6 +1,9 @@
-import { Card, CardContent } from "../ui";
+import { useMemo, useState } from "react";
+import { Card, CardContent, Input } from "../ui";
 
 export default function ReportsSection({ fixtures, scores, teams }) {
+  const [query, setQuery] = useState("");
+  const normalizedQuery = query.trim().toLowerCase();
   const teamStats = new Map();
   const playerStats = new Map();
   const headToHead = new Map();
@@ -112,26 +115,63 @@ export default function ReportsSection({ fixtures, scores, teams }) {
     });
   });
 
-  const teamRows = Array.from(teamStats.values()).sort(
-    (a, b) => b.wins - a.wins || b.pointsFor - a.pointsFor
+  const teamRows = useMemo(
+    () =>
+      Array.from(teamStats.values()).sort(
+        (a, b) => b.wins - a.wins || b.pointsFor - a.pointsFor
+      ),
+    [teamStats]
   );
-  const playerRows = Array.from(playerStats.values()).sort(
-    (a, b) => b.wins - a.wins || b.pointsFor - a.pointsFor
+  const playerRows = useMemo(
+    () =>
+      Array.from(playerStats.values()).sort(
+        (a, b) => b.wins - a.wins || b.pointsFor - a.pointsFor
+      ),
+    [playerStats]
   );
-  const headRows = Array.from(headToHead.values()).sort(
-    (a, b) => b.played - a.played
+  const headRows = useMemo(
+    () => Array.from(headToHead.values()).sort((a, b) => b.played - a.played),
+    [headToHead]
   );
+
+  const filterByQuery = (text) =>
+    !normalizedQuery || text.toLowerCase().includes(normalizedQuery);
+  const filteredTeams = normalizedQuery
+    ? teamRows.filter((row) => filterByQuery(row.team))
+    : teamRows;
+  const filteredHead = normalizedQuery
+    ? headRows.filter(
+        (row) => filterByQuery(row.t1) || filterByQuery(row.t2)
+      )
+    : headRows;
+  const filteredPlayers = normalizedQuery
+    ? playerRows.filter(
+        (row) => filterByQuery(row.name) || filterByQuery(row.team)
+      )
+    : playerRows;
 
   return (
     <div className="grid gap-4">
       <div className="text-xl font-extrabold">Reports</div>
 
       <Card>
-        <CardContent className="grid gap-2">
-          <div className="text-sm font-extrabold">Team Totals</div>
-          {teamRows.length ? (
+        <CardContent>
+          <Input
+            placeholder="Search teams or players"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </CardContent>
+      </Card>
+
+      <details className="rounded-2xl border border-slate-200 bg-white p-4" open>
+        <summary className="cursor-pointer text-sm font-extrabold text-slate-900">
+          Team Totals
+        </summary>
+        <div className="mt-3">
+          {filteredTeams.length ? (
             <div className="grid gap-2">
-              {teamRows.map((row) => (
+              {filteredTeams.map((row) => (
                 <div
                   key={row.team}
                   className="grid grid-cols-[1fr_auto] gap-2 border rounded-xl px-3 py-2"
@@ -151,41 +191,45 @@ export default function ReportsSection({ fixtures, scores, teams }) {
           ) : (
             <div className="text-sm text-slate-500">No scores yet.</div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </details>
 
-      <Card>
-        <CardContent className="grid gap-2">
-          <div className="text-sm font-extrabold">Team vs Team</div>
-          {headRows.length ? (
+      <details className="rounded-2xl border border-slate-200 bg-white p-4" open>
+        <summary className="cursor-pointer text-sm font-extrabold text-slate-900">
+          Team vs Team
+        </summary>
+        <div className="mt-3">
+          {filteredHead.length ? (
             <div className="grid gap-2">
-              {headRows.map((row) => (
-                <div
+              {filteredHead.map((row) => (
+                <details
                   key={row.key}
-                  className="grid grid-cols-[1fr_auto] gap-2 border rounded-xl px-3 py-2"
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2"
                 >
-                  <div className="font-semibold">
+                  <summary className="cursor-pointer font-semibold">
                     {row.t1} vs {row.t2}
-                  </div>
-                  <div className="text-xs text-slate-600 text-right">
+                  </summary>
+                  <div className="mt-2 text-xs text-slate-600">
                     Played {row.played} • {row.t1} {row.t1Wins} - {row.t2Wins}{" "}
                     {row.t2}
                   </div>
-                </div>
+                </details>
               ))}
             </div>
           ) : (
             <div className="text-sm text-slate-500">No head-to-head data yet.</div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </details>
 
-      <Card>
-        <CardContent className="grid gap-2">
-          <div className="text-sm font-extrabold">Player Matches</div>
-          {playerRows.length ? (
+      <details className="rounded-2xl border border-slate-200 bg-white p-4" open>
+        <summary className="cursor-pointer text-sm font-extrabold text-slate-900">
+          Player Matches
+        </summary>
+        <div className="mt-3">
+          {filteredPlayers.length ? (
             <div className="grid gap-2">
-              {playerRows.map((row) => (
+              {filteredPlayers.map((row) => (
                 <div
                   key={row.key}
                   className="grid grid-cols-[1fr_auto] gap-2 border rounded-xl px-3 py-2"
@@ -206,8 +250,8 @@ export default function ReportsSection({ fixtures, scores, teams }) {
               Select players in Score to populate this report.
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </details>
     </div>
   );
 }
