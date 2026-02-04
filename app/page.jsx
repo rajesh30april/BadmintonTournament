@@ -13,10 +13,11 @@ import MatchesSection from "./components/tournament/MatchesSection";
 import ScoreSection from "./components/tournament/ScoreSection";
 import StandingsSection from "./components/tournament/StandingsSection";
 import HeaderBar from "./components/tournament/HeaderBar";
-import TopTabBar from "./components/tournament/TopTabBar";
+import ReportsSection from "./components/tournament/ReportsSection";
 
 export default function Page() {
   const [tab, setTab] = useState("setup");
+  const [menuOpen, setMenuOpen] = useState(false);
   const [tournamentName, setTournamentName] = useState("");
   const [tournaments, setTournaments] = useState([]);
   const [selectedTournamentId, setSelectedTournamentId] = useState("");
@@ -245,7 +246,7 @@ export default function Page() {
   const canUpdate =
     Boolean(selectedTournamentId) &&
     (currentUser?.role === "admin" || currentUser?.access === "write");
-  const tabs = ["setup", "teams", "matches", "score", "standings"];
+  const tabs = ["setup", "teams", "matches", "score", "standings", "reports"];
   const tabIndex = Math.max(0, tabs.indexOf(tab));
   const canGoBack = tabIndex > 0;
   const canGoNext = tabIndex < tabs.length - 1;
@@ -328,15 +329,15 @@ export default function Page() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20">
+    <div className="min-h-screen bg-slate-50">
       <HeaderBar
         tournamentName={tournamentName}
         username={currentUser?.username}
         onLogout={handleLogout}
+        onMenu={() => setMenuOpen(true)}
       />
-      <TopTabBar tab={tab} setTab={setTab} />
-      <div className="fixed bottom-0 left-0 right-0 z-20 bg-slate-50/95 px-4 py-3 border-t border-slate-200">
-        <div className="grid grid-cols-3 items-center gap-2">
+      <div className="sticky top-[54px] z-20 bg-slate-50/95 px-4 py-3 border-b border-slate-200">
+        <div className="grid grid-cols-2 items-center gap-2">
           <button
             type="button"
             onClick={goBack}
@@ -344,14 +345,6 @@ export default function Page() {
             className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
           >
             ← Back
-          </button>
-          <button
-            type="button"
-            onClick={updateTournament}
-            disabled={!canUpdate || savingTournament}
-            className="w-full rounded-2xl bg-slate-900 px-8 py-3 text-base font-semibold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {savingTournament ? "Saving..." : "Save"}
           </button>
           <button
             type="button"
@@ -363,6 +356,58 @@ export default function Page() {
           </button>
         </div>
       </div>
+
+      <div
+        className={`fixed inset-0 z-30 bg-slate-900/30 transition-opacity ${
+          menuOpen ? "opacity-100" : "pointer-events-none opacity-0"
+        }`}
+        onClick={() => setMenuOpen(false)}
+      />
+      <aside
+        className={`fixed left-0 top-0 z-40 h-full w-64 bg-white shadow-xl transition-transform ${
+          menuOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="px-4 py-4 border-b border-slate-200 flex items-center justify-between">
+          <div className="text-sm font-extrabold">Menu</div>
+          <button
+            type="button"
+            onClick={() => setMenuOpen(false)}
+            className="text-sm font-semibold text-slate-500"
+          >
+            Close
+          </button>
+        </div>
+        <nav className="p-3 grid gap-2">
+          {tabs.map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => {
+                setTab(t);
+                setMenuOpen(false);
+              }}
+              className={`rounded-xl border px-3 py-2 text-left text-sm font-semibold ${
+                tab === t
+                  ? "bg-blue-50 border-blue-200 text-blue-700"
+                  : "bg-white border-slate-200 text-slate-700"
+              }`}
+            >
+              {t === "setup"
+                ? "Setup"
+                : t === "teams"
+                ? "Teams"
+                : t === "matches"
+                ? "Matches"
+                : t === "score"
+                ? "Score"
+                : t === "standings"
+                ? "Standing"
+                : "Reports"}
+            </button>
+          ))}
+        </nav>
+      </aside>
 
       <div className="p-4 grid gap-4">
         {tab === "setup" && (
@@ -438,6 +483,10 @@ export default function Page() {
         )}
 
         {tab === "standings" && <StandingsSection standings={standings} />}
+
+        {tab === "reports" && (
+          <ReportsSection fixtures={fixtures} scores={scores} teams={teams} />
+        )}
       </div>
 
     </div>
