@@ -5,7 +5,7 @@ import {
   isDuplicateNameError,
   updateTournament,
 } from "../../../lib/tournamentStore";
-import { getSessionFromRequest, requireWrite } from "../../../lib/auth";
+import { getSessionFromRequest, requireScoreOrWrite, requireWrite } from "../../../lib/auth";
 
 export async function GET(_request, { params }) {
   const { id } = await params;
@@ -20,7 +20,7 @@ export async function GET(_request, { params }) {
 }
 
 export async function PUT(request, { params }) {
-  const guard = requireWrite(request);
+  const guard = requireScoreOrWrite(request);
   if (guard.error) {
     return NextResponse.json({ error: guard.error }, { status: guard.status });
   }
@@ -28,6 +28,15 @@ export async function PUT(request, { params }) {
   const session = getSessionFromRequest(request);
   if (session?.username) {
     payload.updatedBy = session.username;
+  }
+  if (session?.role !== "admin" && session?.access === "score") {
+    const scoresOnly = payload?.scores || {};
+    Object.keys(payload).forEach((key) => {
+      if (key !== "scores" && key !== "updatedBy") {
+        delete payload[key];
+      }
+    });
+    payload.scores = scoresOnly;
   }
   try {
     const { id } = await params;

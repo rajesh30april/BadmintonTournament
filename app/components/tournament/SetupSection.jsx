@@ -15,6 +15,7 @@ export default function SetupSection({
   loadSuccess,
   onRefreshTournaments,
   onLoadTournament,
+  onDeleteTournament,
   categories,
   categoriesByKey,
   categoryKeysSorted,
@@ -45,31 +46,31 @@ export default function SetupSection({
             Tournaments
           </summary>
           <div className="mt-3 grid gap-2">
-            <div className="grid grid-cols-2 gap-2">
-              <Select
-                value={selectedTournamentId}
-                onChange={(e) => setSelectedTournamentId(e.target.value)}
-              >
-                <option value="">Select tournament</option>
-                {tournaments.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name || t.id}
-                  </option>
-                ))}
-              </Select>
-              <Button
-                variant="outline"
-                onClick={onRefreshTournaments}
-                disabled={loadingTournaments}
-              >
-                {loadingTournaments ? "Refreshing..." : "Refresh"}
-              </Button>
-            </div>
-            <div className="grid grid-cols-1 gap-2">
-              <Button variant="outline" onClick={onLoadTournament} disabled={!selectedTournamentId}>
-                Load
-              </Button>
-            </div>
+          <div className="grid grid-cols-1 gap-2">
+            <Select
+              value={selectedTournamentId}
+              onChange={(e) => setSelectedTournamentId(e.target.value)}
+            >
+              <option value="">Select tournament</option>
+              {tournaments.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name || t.id}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant="outline" onClick={onLoadTournament} disabled={!selectedTournamentId}>
+              Load
+            </Button>
+            <Button
+              variant="outline"
+              onClick={onDeleteTournament}
+              disabled={!selectedTournamentId || readOnly}
+            >
+              Delete
+            </Button>
+          </div>
             {selectedTournament?.updatedBy ? (
               <div className="text-xs text-slate-500">
                 Last saved by <b>{selectedTournament.updatedBy}</b>
@@ -100,11 +101,12 @@ export default function SetupSection({
             Tournament Name
           </summary>
           <div className="mt-3">
-            <Input
-              value={tournamentName}
-              onChange={(e) => setTournamentName(e.target.value)}
-              placeholder="Ex: Friday League"
-            />
+          <Input
+            value={tournamentName}
+            onChange={(e) => setTournamentName(e.target.value)}
+            placeholder="Ex: Friday League"
+            disabled={readOnly}
+          />
           </div>
         </details>
 
@@ -144,6 +146,7 @@ export default function SetupSection({
                       min={0}
                       value={c?.count ?? 0}
                       onChange={(e) => updateCategoryCount(k, Number(e.target.value))}
+                      disabled={readOnly}
                     />
                     <div className="flex justify-end">
                       <Button
@@ -151,6 +154,7 @@ export default function SetupSection({
                         className="px-2"
                         onClick={() => removeCategory(k)}
                         title="Remove category"
+                        disabled={readOnly}
                       >
                         ✕
                       </Button>
@@ -166,23 +170,30 @@ export default function SetupSection({
               placeholder="New category (ex: A)"
               value={newCategoryKey}
               onChange={(e) => setNewCategoryKey(e.target.value)}
+              disabled={readOnly}
             />
             <Input
               type="number"
               placeholder="# players"
               value={newCategoryCount}
               onChange={(e) => setNewCategoryCount(e.target.value)}
+              disabled={readOnly}
             />
           </div>
 
           <div className="mt-2 flex gap-2">
-            <Button variant="outline" className="w-full" onClick={addCategory}>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={addCategory}
+              disabled={readOnly}
+            >
               + Add Category
             </Button>
             <Button
               className="w-full"
               onClick={applySetupToExistingTeams}
-              disabled={teams.length === 0}
+              disabled={teams.length === 0 || readOnly}
             >
               Apply to Teams
             </Button>
@@ -231,6 +242,7 @@ export default function SetupSection({
                       const next = Math.max(0, Number(e.target.value || 0));
                       setMatchTypeConfig((prev) => ({ ...prev, [opt.key]: next }));
                     }}
+                    disabled={readOnly}
                   />
                 </div>
               ))}
@@ -253,9 +265,13 @@ export default function SetupSection({
               placeholder={categories.length ? "Team name" : "Add categories first"}
               value={newTeamName}
               onChange={(e) => setNewTeamName(e.target.value)}
-              disabled={!categories.length}
+              disabled={!categories.length || readOnly}
             />
-            <Button className="shrink-0" onClick={addTeam} disabled={!categories.length}>
+            <Button
+              className="shrink-0"
+              onClick={addTeam}
+              disabled={!categories.length || readOnly}
+            >
               + Add
             </Button>
           </div>

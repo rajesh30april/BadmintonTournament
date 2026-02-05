@@ -21,9 +21,8 @@ export function Button({ variant = "solid", className = "", children, ...props }
   const base =
     "inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed";
   const solid = "bg-blue-700 text-white hover:bg-blue-800";
-  const outline =
-    "border border-slate-200 bg-white text-slate-900 hover:bg-slate-50";
-  const ghost = "bg-transparent text-slate-700 hover:bg-slate-100";
+  const outline = "bg-blue-700 text-white hover:bg-blue-800 border border-blue-700";
+  const ghost = "bg-blue-700 text-white hover:bg-blue-800";
   const styles =
     variant === "outline" ? outline : variant === "ghost" ? ghost : solid;
   return (

@@ -25,6 +25,7 @@ export default function Page() {
   const [savingTournament, setSavingTournament] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [loadSuccess, setLoadSuccess] = useState("");
+  const [toast, setToast] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
 
   // Global setup
@@ -65,6 +66,15 @@ export default function Page() {
       .then((json) => setCurrentUser(json.user))
       .catch(() => setCurrentUser(null));
   }, []);
+
+  useEffect(() => {
+    if (!loadSuccess && !loadError) return;
+    const type = loadError ? "error" : "success";
+    const message = loadError || loadSuccess;
+    setToast({ type, message });
+    const timer = setTimeout(() => setToast(null), 3000);
+    return () => clearTimeout(timer);
+  }, [loadSuccess, loadError]);
 
   const categoryKeysSorted = useMemo(() => {
     const keys = categories.map((c) => slug(c.key));
@@ -244,7 +254,16 @@ export default function Page() {
     tournaments.find((t) => t.id === selectedTournamentId) || null;
   const canUpdate =
     Boolean(selectedTournamentId) &&
-    (currentUser?.role === "admin" || currentUser?.access === "write");
+    (currentUser?.role === "admin" ||
+      currentUser?.access === "write" ||
+      currentUser?.access === "score");
+  const canSave =
+    canUpdate &&
+    !(
+      tab === "setup" &&
+      currentUser?.role !== "admin" &&
+      currentUser?.access === "score"
+    );
   const tabs = ["setup", "teams", "matches", "standings", "reports"];
   const tabIndex = Math.max(0, tabs.indexOf(tab));
   const canGoBack = tabIndex > 0;
@@ -297,13 +316,16 @@ export default function Page() {
     setLoadError("");
     setLoadSuccess("");
     try {
-      const payload = {
-        name: tournamentName || "Untitled Tournament",
-        categories,
-        matchTypeConfig,
-        teams,
-        scores,
-      };
+      const payload =
+        currentUser?.role !== "admin" && currentUser?.access === "score"
+          ? { scores }
+          : {
+              name: tournamentName || "Untitled Tournament",
+              categories,
+              matchTypeConfig,
+              teams,
+              scores,
+            };
       const res = await fetch(`/api/tournaments/${selectedTournamentId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -327,6 +349,32 @@ export default function Page() {
     window.location.href = "/login";
   };
 
+  const deleteSelectedTournament = async () => {
+    if (!selectedTournamentId) return;
+    setLoadError("");
+    setLoadSuccess("");
+    try {
+      const res = await fetch(`/api/tournaments/${selectedTournamentId}`, {
+        method: "DELETE",
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json.error || "Failed to delete tournament.");
+      }
+      setSelectedTournamentId("");
+      setTournamentName("");
+      setCategories([]);
+      setMatchTypeConfig({});
+      setTeams([]);
+      setScores({});
+      setSelectedMatch(null);
+      await refreshTournaments();
+      setLoadSuccess("Tournament deleted.");
+    } catch (err) {
+      setLoadError(err.message || "Failed to delete tournament.");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50">
       <HeaderBar
@@ -335,13 +383,26 @@ export default function Page() {
         onLogout={handleLogout}
         onMenu={() => setMenuOpen(true)}
       />
+      {toast ? (
+        <div className="fixed right-4 bottom-20 z-50">
+          <div
+            className={`rounded-xl px-4 py-3 text-sm font-semibold shadow-lg ${
+              toast.type === "error"
+                ? "bg-rose-600 text-white"
+                : "bg-emerald-600 text-white"
+            }`}
+          >
+            {toast.message}
+          </div>
+        </div>
+      ) : null}
       <div className="sticky top-[54px] z-20 bg-slate-50/95 px-4 py-3 border-b border-slate-200">
         <div className="grid grid-cols-1 items-center">
           <button
             type="button"
             onClick={updateTournament}
-            disabled={!canUpdate || savingTournament}
-            className="w-full rounded-2xl bg-slate-900 px-8 py-3 text-base font-semibold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={!canSave || savingTournament}
+            className="w-full rounded-2xl bg-blue-700 px-8 py-3 text-base font-semibold text-white shadow-sm hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {savingTournament ? "Saving..." : "Save"}
           </button>
@@ -380,8 +441,8 @@ export default function Page() {
               }}
               className={`rounded-xl border px-3 py-2 text-left text-sm font-semibold ${
                 tab === t
-                  ? "bg-blue-50 border-blue-200 text-blue-700"
-                  : "bg-white border-slate-200 text-slate-700"
+                  ? "bg-blue-800 border-blue-800 text-white"
+                  : "bg-blue-700 border-blue-700 text-white"
               }`}
             >
               {t === "setup"
@@ -389,7 +450,7 @@ export default function Page() {
                 : t === "teams"
                 ? "Teams"
                 : t === "matches"
-                ? "Matches"
+                ? "Scores"
                 : t === "standings"
                 ? "Standing"
                 : "Reports"}
@@ -415,6 +476,7 @@ export default function Page() {
             loadSuccess={loadSuccess}
             onRefreshTournaments={refreshTournaments}
             onLoadTournament={() => loadTournament(selectedTournamentId)}
+            onDeleteTournament={deleteSelectedTournament}
             categories={categories}
             categoriesByKey={categoriesByKey}
             categoryKeysSorted={categoryKeysSorted}
@@ -443,6 +505,9 @@ export default function Page() {
             categoryKeysSorted={categoryKeysSorted}
             updateOwner={updateOwner}
             updatePlayerName={updatePlayerName}
+            readOnly={
+              currentUser?.role !== "admin" && currentUser?.access !== "write"
+            }
           />
         )}
 
@@ -459,6 +524,11 @@ export default function Page() {
             matchRows={matchRows}
             scores={scores}
             upsertScore={upsertScore}
+            readOnly={
+              currentUser?.role !== "admin" &&
+              currentUser?.access !== "write" &&
+              currentUser?.access !== "score"
+            }
           />
         )}
 
@@ -475,7 +545,7 @@ export default function Page() {
             type="button"
             onClick={goBack}
             disabled={!canGoBack}
-            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-xl bg-blue-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
             ← Back
           </button>
@@ -483,7 +553,7 @@ export default function Page() {
             type="button"
             onClick={goNext}
             disabled={!canGoNext}
-            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-xl bg-blue-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
             Next →
           </button>

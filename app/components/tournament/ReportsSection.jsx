@@ -183,7 +183,7 @@ export default function ReportsSection({ fixtures, scores, teams }) {
                     </div>
                   </div>
                   <div className="text-right text-xs font-semibold text-slate-700">
-                    For {row.pointsFor} • Against {row.pointsAgainst}
+                    {row.pointsFor}:{row.pointsAgainst}
                   </div>
                 </div>
               ))}
@@ -239,7 +239,7 @@ export default function ReportsSection({ fixtures, scores, teams }) {
                     <div className="text-xs text-slate-500">{row.team}</div>
                   </div>
                   <div className="text-xs text-slate-600 text-right">
-                    Played {row.played} • W {row.wins} • L {row.losses} • For{" "}
+                    Played {row.played} • W {row.wins} • L {row.losses} •{" "}
                     {row.pointsFor}
                   </div>
                 </div>

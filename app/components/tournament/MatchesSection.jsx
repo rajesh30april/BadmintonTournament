@@ -12,6 +12,7 @@ export default function MatchesSection({
   matchRows = [],
   scores = {},
   upsertScore = () => {},
+  readOnly = false,
 }) {
   const [query, setQuery] = useState("");
   const normalizedQuery = query.trim().toLowerCase();
@@ -112,7 +113,7 @@ export default function MatchesSection({
         <CardContent className="p-0">
           <div className="p-4 flex items-center justify-between">
             <div>
-              <div className="text-xl font-extrabold">Matches</div>
+              <div className="text-xl font-extrabold">Scores</div>
               <div className="text-sm text-slate-500">Round-robin fixtures</div>
             </div>
           </div>
@@ -250,6 +251,7 @@ export default function MatchesSection({
                                     e.target.value
                                   )
                                 }
+                                disabled={readOnly}
                               >
                                 <option value="">
                                   Select {cat1} Player
@@ -270,6 +272,7 @@ export default function MatchesSection({
                                     e.target.value
                                   )
                                 }
+                                disabled={readOnly}
                               >
                                 <option value="">
                                   Select {sameCat ? cat1 : cat2} Player
@@ -297,6 +300,7 @@ export default function MatchesSection({
                                     e.target.value
                                   )
                                 }
+                                disabled={readOnly}
                               >
                                 <option value="">
                                   Select {cat1} Player
@@ -317,6 +321,7 @@ export default function MatchesSection({
                                     e.target.value
                                   )
                                 }
+                                disabled={readOnly}
                               >
                                 <option value="">
                                   Select {sameCat ? cat1 : cat2} Player
@@ -343,6 +348,7 @@ export default function MatchesSection({
                                 onChange={(e) =>
                                   upsertScore(selectedMatch, row.id, "t1", e.target.value)
                                 }
+                                disabled={readOnly}
                               />
                             </div>
                             <div>
@@ -355,6 +361,7 @@ export default function MatchesSection({
                                 onChange={(e) =>
                                   upsertScore(selectedMatch, row.id, "t2", e.target.value)
                                 }
+                                disabled={readOnly}
                               />
                             </div>
                           </div>
@@ -368,6 +375,7 @@ export default function MatchesSection({
                               onChange={(e) =>
                                 upsertScore(selectedMatch, row.id, "winner", e.target.value)
                               }
+                              disabled={readOnly}
                             >
                               <option value="">Select Winner</option>
                               <option value="t1">{t1}</option>

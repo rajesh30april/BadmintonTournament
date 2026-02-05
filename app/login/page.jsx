@@ -123,7 +123,7 @@ function LoginContent() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className={`${sora.className} flex w-full items-center justify-center rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-md transition hover:-translate-y-0.5 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-70`}
+                  className={`${sora.className} flex w-full items-center justify-center rounded-2xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white shadow-md transition hover:-translate-y-0.5 hover:bg-blue-800 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-70`}
                 >
                   {loading ? "Signing in..." : "Sign in"}
                 </button>

@@ -39,3 +39,16 @@ export function requireWrite(request) {
   }
   return { session };
 }
+
+export function requireScoreOrWrite(request) {
+  const { session, error, status } = requireAuth(request);
+  if (error) return { error, status };
+  if (
+    session.role !== "admin" &&
+    session.access !== "write" &&
+    session.access !== "score"
+  ) {
+    return { error: "Read-only access", status: 403 };
+  }
+  return { session };
+}

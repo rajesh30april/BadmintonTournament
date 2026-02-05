@@ -62,13 +62,13 @@ export default function AdminPage() {
               Admin Access
             </h1>
             <p className={`${sora.className} text-sm text-slate-500`}>
-              Set read/write access for users. Admin always has write access.
+              Set read/write/score access for users. Admin always has write access.
             </p>
           </div>
           <button
             type="button"
             onClick={logout}
-            className={`${sora.className} rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm`}
+            className={`${sora.className} rounded-xl bg-blue-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-800`}
           >
             Log out
           </button>
@@ -108,6 +108,7 @@ export default function AdminPage() {
                       onChange={(e) => updateAccess(user.username, e.target.value)}
                     >
                       <option value="read">read</option>
+                      <option value="score">score</option>
                       <option value="write">write</option>
                     </select>
                   )}

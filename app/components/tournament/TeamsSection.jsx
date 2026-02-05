@@ -5,6 +5,7 @@ export default function TeamsSection({
   categoryKeysSorted,
   updateOwner,
   updatePlayerName,
+  readOnly = false,
 }) {
   return (
     <div className="grid gap-3">
@@ -33,6 +34,7 @@ export default function TeamsSection({
                   value={t.owner || ""}
                   onChange={(e) => updateOwner(t.name, e.target.value)}
                   placeholder="Owner name"
+                  disabled={readOnly}
                 />
               </div>
 
@@ -55,6 +57,7 @@ export default function TeamsSection({
                                 updatePlayerName(t.name, p.rank, e.target.value)
                               }
                               placeholder="Player name"
+                              disabled={readOnly}
                             />
                           </div>
                         </div>
