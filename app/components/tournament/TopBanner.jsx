@@ -8,7 +8,7 @@ export default function TopBanner({ title, titleSlot, subtitle, rightSlot }) {
           </div>
           <div className="mt-1">
             {titleSlot ? (
-              titleSlot
+              <div className="w-full sm:min-w-[260px]">{titleSlot}</div>
             ) : (
               <div className="text-lg font-extrabold text-slate-900">{title}</div>
             )}
@@ -17,7 +17,9 @@ export default function TopBanner({ title, titleSlot, subtitle, rightSlot }) {
             <div className="mt-1 text-xs text-slate-600">{subtitle}</div>
           ) : null}
         </div>
-        {rightSlot ? <div className="flex-shrink-0">{rightSlot}</div> : null}
+        {rightSlot ? (
+          <div className="flex-shrink-0 w-full sm:w-auto">{rightSlot}</div>
+        ) : null}
       </div>
     </div>
   );
