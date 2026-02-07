@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  buildFixtures,
   buildMatchRows,
   buildMatchTypeOptions,
   buildPlayerSlots,
@@ -13,13 +14,19 @@ import MatchesSection from "./components/tournament/MatchesSection";
 import StandingsSection from "./components/tournament/StandingsSection";
 import HeaderBar from "./components/tournament/HeaderBar";
 import ReportsSection from "./components/tournament/ReportsSection";
+import ProfilesSection from "./components/tournament/ProfilesSection";
+import TopBanner from "./components/tournament/TopBanner";
+import { Button, Card, CardContent, Select } from "./components/ui";
 
 export default function Page() {
   const [tab, setTab] = useState("setup");
   const [menuOpen, setMenuOpen] = useState(false);
   const [tournamentName, setTournamentName] = useState("");
+  const [tournamentType, setTournamentType] = useState("team");
+  const [setupTab, setSetupTab] = useState("name");
   const [tournaments, setTournaments] = useState([]);
   const [selectedTournamentId, setSelectedTournamentId] = useState("");
+  const [deleteTournamentId, setDeleteTournamentId] = useState("");
   const [loadingTournaments, setLoadingTournaments] = useState(false);
   const [loadingSelectedTournament, setLoadingSelectedTournament] = useState(false);
   const [savingTournament, setSavingTournament] = useState(false);
@@ -40,15 +47,32 @@ export default function Page() {
   // Matches & scoring
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [scores, setScores] = useState({});
+  const [manualFixtures, setManualFixtures] = useState([]);
+  const [newFixtureT1, setNewFixtureT1] = useState("");
+  const [newFixtureT2, setNewFixtureT2] = useState("");
+  const [profiles, setProfiles] = useState([]);
 
-  const matchTypeOptions = useMemo(
-    () => buildMatchTypeOptions(categories),
-    [categories]
-  );
+  const isTeamType = tournamentType === "team";
+
+  const matchTypeOptions = useMemo(() => {
+    if (isTeamType) return buildMatchTypeOptions(categories);
+    return [
+      {
+        key: "P__P",
+        label: tournamentType === "singles" ? "S" : "D",
+        a: "P",
+        b: "P",
+      },
+    ];
+  }, [categories, isTeamType, tournamentType]);
 
   const [matchTypeConfig, setMatchTypeConfig] = useState({});
 
   useEffect(() => {
+    if (!isTeamType) {
+      setMatchTypeConfig({ P__P: 1 });
+      return;
+    }
     setMatchTypeConfig((prev) => {
       const next = {};
       matchTypeOptions.forEach((opt) => {
@@ -66,6 +90,17 @@ export default function Page() {
       .then((json) => setCurrentUser(json.user))
       .catch(() => setCurrentUser(null));
   }, []);
+
+  useEffect(() => {
+    fetch("/api/profiles", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : Promise.reject()))
+      .then((json) => setProfiles(Array.isArray(json.data) ? json.data : []))
+      .catch(() => setProfiles([]));
+  }, []);
+
+  useEffect(() => {
+    setSetupTab("name");
+  }, [selectedTournamentId, tournamentType]);
 
   useEffect(() => {
     if (!loadSuccess && !loadError) return;
@@ -89,19 +124,10 @@ export default function Page() {
     return map;
   }, [categories]);
 
-  const fixtures = useMemo(() => {
-    const list = [];
-    for (let i = 0; i < teams.length; i++) {
-      for (let j = i + 1; j < teams.length; j++) {
-        list.push({
-          key: `${teams[i].name} vs ${teams[j].name}`,
-          t1: teams[i].name,
-          t2: teams[j].name,
-        });
-      }
-    }
-    return list;
-  }, [teams]);
+  const fixtures = useMemo(
+    () => (isTeamType ? buildFixtures(teams) : manualFixtures),
+    [isTeamType, manualFixtures, teams]
+  );
 
   const matchRows = useMemo(
     () => buildMatchRows(matchTypeOptions, matchTypeConfig),
@@ -137,9 +163,17 @@ export default function Page() {
     const name = newTeamName.trim();
     if (!name) return;
     if (teams.some((t) => t.name.toLowerCase() === name.toLowerCase())) return;
+    const players = isTeamType
+      ? buildPlayerSlots(categories)
+      : [
+          { category: "P", rank: "P1", name: "" },
+          ...(tournamentType === "singles"
+            ? []
+            : [{ category: "P", rank: "P2", name: "" }]),
+        ];
     setTeams((p) => [
       ...p,
-      { name, owner: "", players: buildPlayerSlots(categories) },
+      { name, owner: "", players },
     ]);
     setNewTeamName("");
   };
@@ -163,6 +197,7 @@ export default function Page() {
   };
 
   const applySetupToExistingTeams = () => {
+    if (!isTeamType) return;
     setTeams((p) =>
       p.map((t) => {
         const newSlots = buildPlayerSlots(categories);
@@ -171,6 +206,28 @@ export default function Page() {
           ...t,
           players: newSlots.map((pl) => ({ ...pl, name: old.get(pl.rank) || "" })),
         };
+      })
+    );
+  };
+
+  const handleTypeChange = (next) => {
+    if (next === tournamentType) return;
+    setTournamentType(next);
+    setSelectedMatch(null);
+    setScores({});
+    setManualFixtures([]);
+    setNewFixtureT1("");
+    setNewFixtureT2("");
+    setTeams((prev) =>
+      prev.map((t) => {
+        if (next === "team") {
+          return { ...t, players: buildPlayerSlots(categories) };
+        }
+        const players = [
+          { category: "P", rank: "P1", name: "" },
+          ...(next === "singles" ? [] : [{ category: "P", rank: "P2", name: "" }]),
+        ];
+        return { ...t, players };
       })
     );
   };
@@ -236,10 +293,12 @@ export default function Page() {
         throw new Error("Not found");
       }
       setTournamentName(record.name || "");
+      setTournamentType(record.type || "team");
       setCategories(Array.isArray(record.categories) ? record.categories : []);
       setMatchTypeConfig(record.matchTypeConfig || {});
       setTeams(Array.isArray(record.teams) ? record.teams : []);
       setScores(record.scores || {});
+      setManualFixtures(Array.isArray(record.fixtures) ? record.fixtures : []);
       setSelectedMatch(null);
       setTab("setup");
       setLoadSuccess("Tournament loaded.");
@@ -264,7 +323,9 @@ export default function Page() {
       currentUser?.role !== "admin" &&
       currentUser?.access === "score"
     );
-  const tabs = ["setup", "teams", "matches", "standings", "reports"];
+  const canEditStructure =
+    currentUser?.role === "admin" || currentUser?.access === "write";
+  const tabs = ["setup", "profiles", "matches", "standings", "reports"];
   const tabIndex = Math.max(0, tabs.indexOf(tab));
   const canGoBack = tabIndex > 0;
   const canGoNext = tabIndex < tabs.length - 1;
@@ -282,12 +343,15 @@ export default function Page() {
     setLoadError("");
     setLoadSuccess("");
     try {
+      const fixturesPayload = isTeamType ? buildFixtures(teams) : manualFixtures;
       const payload = {
         name: tournamentName || "Untitled Tournament",
+        type: tournamentType,
         categories,
         matchTypeConfig,
         teams,
         scores,
+        fixtures: fixturesPayload,
       };
       const res = await fetch("/api/tournaments", {
         method: "POST",
@@ -310,21 +374,70 @@ export default function Page() {
     }
   };
 
+  const addNewTournament = async () => {
+    if (currentUser?.role !== "admin" && currentUser?.access !== "write") {
+      setLoadError("Read-only access");
+      return;
+    }
+    setSavingTournament(true);
+    setLoadError("");
+    setLoadSuccess("");
+    try {
+      const payload = {
+        name: tournamentName || "Untitled Tournament",
+        type: tournamentType,
+        categories: [],
+        matchTypeConfig: {},
+        teams: [],
+        scores: {},
+        fixtures: [],
+      };
+      const res = await fetch("/api/tournaments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json.error || "Failed to add tournament.");
+      }
+      const created = json.data;
+      if (created?.id) {
+        setSelectedTournamentId(created.id);
+      }
+      setCategories([]);
+      setMatchTypeConfig({});
+      setTeams([]);
+      setScores({});
+      setManualFixtures([]);
+      setSelectedMatch(null);
+      await refreshTournaments();
+      setLoadSuccess("Tournament added.");
+    } catch (err) {
+      setLoadError(err.message || "Failed to add tournament.");
+    } finally {
+      setSavingTournament(false);
+    }
+  };
+
   const updateTournament = async () => {
     if (!selectedTournamentId) return;
     setSavingTournament(true);
     setLoadError("");
     setLoadSuccess("");
     try {
+      const fixturesPayload = isTeamType ? buildFixtures(teams) : manualFixtures;
       const payload =
         currentUser?.role !== "admin" && currentUser?.access === "score"
           ? { scores }
           : {
               name: tournamentName || "Untitled Tournament",
+              type: tournamentType,
               categories,
               matchTypeConfig,
               teams,
               scores,
+              fixtures: fixturesPayload,
             };
       const res = await fetch(`/api/tournaments/${selectedTournamentId}`, {
         method: "PUT",
@@ -350,28 +463,57 @@ export default function Page() {
   };
 
   const deleteSelectedTournament = async () => {
-    if (!selectedTournamentId) return;
+    if (!deleteTournamentId) return;
     setLoadError("");
     setLoadSuccess("");
     try {
-      const res = await fetch(`/api/tournaments/${selectedTournamentId}`, {
+      const res = await fetch(`/api/tournaments/${deleteTournamentId}`, {
         method: "DELETE",
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(json.error || "Failed to delete tournament.");
       }
-      setSelectedTournamentId("");
+      if (deleteTournamentId === selectedTournamentId) {
+        setSelectedTournamentId("");
+      }
+      setDeleteTournamentId("");
       setTournamentName("");
+      setTournamentType("team");
       setCategories([]);
       setMatchTypeConfig({});
       setTeams([]);
       setScores({});
+      setManualFixtures([]);
       setSelectedMatch(null);
       await refreshTournaments();
       setLoadSuccess("Tournament deleted.");
     } catch (err) {
       setLoadError(err.message || "Failed to delete tournament.");
+    }
+  };
+
+  const saveProfiles = async () => {
+    if (!selectedTournamentId) return;
+    setSavingTournament(true);
+    setLoadError("");
+    setLoadSuccess("");
+    try {
+      const res = await fetch(`/api/profiles`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profiles }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json.error || "Failed to save profiles.");
+      }
+      setProfiles(Array.isArray(json.data) ? json.data : profiles);
+      setLoadSuccess("Profiles saved.");
+    } catch (err) {
+      setLoadError(err.message || "Failed to save profiles.");
+    } finally {
+      setSavingTournament(false);
     }
   };
 
@@ -396,19 +538,6 @@ export default function Page() {
           </div>
         </div>
       ) : null}
-      <div className="sticky top-[54px] z-20 bg-slate-50/95 px-4 py-3 border-b border-slate-200">
-        <div className="grid grid-cols-1 items-center">
-          <button
-            type="button"
-            onClick={updateTournament}
-            disabled={!canSave || savingTournament}
-            className="w-full rounded-2xl bg-blue-700 px-8 py-3 text-base font-semibold text-white shadow-sm hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {savingTournament ? "Saving..." : "Save"}
-          </button>
-        </div>
-      </div>
-
       <div
         className={`fixed inset-0 z-30 bg-slate-900/30 transition-opacity ${
           menuOpen ? "opacity-100" : "pointer-events-none opacity-0"
@@ -441,14 +570,14 @@ export default function Page() {
               }}
               className={`rounded-xl border px-3 py-2 text-left text-sm font-semibold ${
                 tab === t
-                  ? "bg-blue-800 border-blue-800 text-white"
-                  : "bg-blue-700 border-blue-700 text-white"
+                  ? "bg-slate-900 border-slate-900 text-white"
+                  : "bg-white border-slate-200 text-slate-700"
               }`}
             >
               {t === "setup"
                 ? "Setup"
-                : t === "teams"
-                ? "Teams"
+                : t === "profiles"
+                ? "Profiles"
                 : t === "matches"
                 ? "Scores"
                 : t === "standings"
@@ -460,13 +589,44 @@ export default function Page() {
       </aside>
 
       <div className="p-4 grid gap-4 pb-20">
+        <TopBanner
+          title="Badminton Tournament"
+          titleSlot={
+            <Select
+              value={selectedTournamentId}
+              onChange={(e) => setSelectedTournamentId(e.target.value)}
+            >
+              <option value="">Select tournament</option>
+              {tournaments.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name || t.id}
+                </option>
+              ))}
+            </Select>
+          }
+          rightSlot={
+            <Button
+              variant="outline"
+              onClick={() => loadTournament(selectedTournamentId)}
+              disabled={!selectedTournamentId}
+              className="w-full sm:w-auto"
+            >
+              Load
+            </Button>
+          }
+        />
         {tab === "setup" && (
           <SetupSection
             tournamentName={tournamentName}
             setTournamentName={setTournamentName}
+            tournamentType={tournamentType}
+            setTournamentType={handleTypeChange}
+            configTab={setupTab}
+            setConfigTab={setSetupTab}
             tournaments={tournaments}
             selectedTournamentId={selectedTournamentId}
-            setSelectedTournamentId={setSelectedTournamentId}
+            deleteTournamentId={deleteTournamentId}
+            setDeleteTournamentId={setDeleteTournamentId}
             selectedTournament={selectedTournament}
             currentUser={currentUser}
             loadingTournaments={loadingTournaments}
@@ -477,6 +637,7 @@ export default function Page() {
             onRefreshTournaments={refreshTournaments}
             onLoadTournament={() => loadTournament(selectedTournamentId)}
             onDeleteTournament={deleteSelectedTournament}
+            onAddTournament={addNewTournament}
             categories={categories}
             categoriesByKey={categoriesByKey}
             categoryKeysSorted={categoryKeysSorted}
@@ -488,23 +649,40 @@ export default function Page() {
             matchTypeConfig={matchTypeConfig}
             setMatchTypeConfig={setMatchTypeConfig}
             teams={teams}
-            totalPlayers={totalPlayers}
-            newTeamName={newTeamName}
-            setNewTeamName={setNewTeamName}
             addCategory={addCategory}
             updateCategoryCount={updateCategoryCount}
             removeCategory={removeCategory}
             applySetupToExistingTeams={applySetupToExistingTeams}
-            addTeam={addTeam}
           />
         )}
 
-        {tab === "teams" && (
+        {tab === "profiles" && (
+          <ProfilesSection
+            profiles={profiles}
+            setProfiles={setProfiles}
+            onSave={saveProfiles}
+            saving={savingTournament}
+            canSave={currentUser?.role === "admin" || currentUser?.access === "write"}
+            hasTournament={true}
+            readOnly={
+              currentUser?.role !== "admin" && currentUser?.access !== "write"
+            }
+          />
+        )}
+
+        {tab === "setup" && setupTab === "teams" && (
           <TeamsSection
             teams={teams}
             categoryKeysSorted={categoryKeysSorted}
             updateOwner={updateOwner}
             updatePlayerName={updatePlayerName}
+            tournamentType={tournamentType}
+            newTeamName={newTeamName}
+            setNewTeamName={setNewTeamName}
+            addTeam={addTeam}
+            totalPlayers={totalPlayers}
+            categories={categories}
+            profiles={profiles}
             readOnly={
               currentUser?.role !== "admin" && currentUser?.access !== "write"
             }
@@ -512,24 +690,93 @@ export default function Page() {
         )}
 
         {tab === "matches" && (
-          <MatchesSection
-            fixtures={fixtures}
-            selectedMatch={selectedMatch}
-            onSelectMatch={(key) => {
-              setSelectedMatch(key);
-            }}
-            teams={teams}
-            matchTypeOptions={matchTypeOptions}
-            matchTypeConfig={matchTypeConfig}
-            matchRows={matchRows}
-            scores={scores}
-            upsertScore={upsertScore}
-            readOnly={
-              currentUser?.role !== "admin" &&
-              currentUser?.access !== "write" &&
-              currentUser?.access !== "score"
-            }
-          />
+          <div className="grid gap-3">
+            {!isTeamType ? (
+              <Card>
+                <CardContent className="grid gap-3">
+                  <div className="text-sm font-bold text-slate-700">
+                    Add Match (history allowed)
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Select
+                      value={newFixtureT1}
+                      onChange={(e) => setNewFixtureT1(e.target.value)}
+                      disabled={!canEditStructure}
+                    >
+                      <option value="">Team A</option>
+                      {teams.map((t) => (
+                        <option key={t.name} value={t.name}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </Select>
+                    <Select
+                      value={newFixtureT2}
+                      onChange={(e) => setNewFixtureT2(e.target.value)}
+                      disabled={!canEditStructure}
+                    >
+                      <option value="">Team B</option>
+                      {teams.map((t) => (
+                        <option key={t.name} value={t.name}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                  <Button
+                    onClick={() => {
+                      if (!newFixtureT1 || !newFixtureT2) return;
+                      if (newFixtureT1 === newFixtureT2) return;
+                      const samePairCount = manualFixtures.filter(
+                        (f) =>
+                          (f.t1 === newFixtureT1 && f.t2 === newFixtureT2) ||
+                          (f.t1 === newFixtureT2 && f.t2 === newFixtureT1)
+                      ).length;
+                      const suffix = samePairCount + 1;
+                      const key =
+                        suffix === 1
+                          ? `${newFixtureT1} vs ${newFixtureT2}`
+                          : `${newFixtureT1} vs ${newFixtureT2} (${suffix})`;
+                      setManualFixtures((prev) => [
+                        ...prev,
+                        { key, t1: newFixtureT1, t2: newFixtureT2 },
+                      ]);
+                      setNewFixtureT1("");
+                      setNewFixtureT2("");
+                    }}
+                    disabled={
+                      !canEditStructure ||
+                      !newFixtureT1 ||
+                      !newFixtureT2 ||
+                      newFixtureT1 === newFixtureT2
+                    }
+                  >
+                    + Add Match
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : null}
+
+            <MatchesSection
+              fixtures={fixtures}
+              selectedMatch={selectedMatch}
+              onSelectMatch={(key) => {
+                setSelectedMatch(key);
+              }}
+              teams={teams}
+              matchTypeOptions={matchTypeOptions}
+              matchTypeConfig={matchTypeConfig}
+              matchRows={matchRows}
+              scores={scores}
+              upsertScore={upsertScore}
+              playerSlots={tournamentType === "singles" ? 1 : 2}
+              readOnly={
+                currentUser?.role !== "admin" &&
+                currentUser?.access !== "write" &&
+                currentUser?.access !== "score"
+              }
+            />
+          </div>
         )}
 
         {tab === "standings" && <StandingsSection standings={standings} />}
@@ -540,12 +787,22 @@ export default function Page() {
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 z-20 bg-slate-50/95 px-4 py-3 border-t border-slate-200">
+        <div className="grid grid-cols-1 items-center gap-2 mb-2">
+          <button
+            type="button"
+            onClick={updateTournament}
+            disabled={!canSave || savingTournament}
+            className="w-full rounded-2xl bg-slate-900 px-8 py-3 text-base font-semibold text-white shadow-sm hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {savingTournament ? "Saving..." : "Save"}
+          </button>
+        </div>
         <div className="grid grid-cols-2 items-center gap-2">
           <button
             type="button"
             onClick={goBack}
             disabled={!canGoBack}
-            className="w-full rounded-xl bg-blue-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             ← Back
           </button>
@@ -553,7 +810,7 @@ export default function Page() {
             type="button"
             onClick={goNext}
             disabled={!canGoNext}
-            className="w-full rounded-xl bg-blue-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             Next →
           </button>

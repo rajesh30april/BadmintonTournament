@@ -2,10 +2,12 @@ import {
   createTournament as createMock,
   deleteTournament as deleteMock,
   getTournament as getMock,
+  getProfiles as getProfilesMock,
   listTournaments as listMock,
   updateTournament as updateMock,
+  updateProfiles as updateProfilesMock,
 } from "./mockDb";
-import { buildMatchRows, buildMatchTypeOptions, slug } from "./tournament";
+import { buildFixtures, buildMatchRows, buildMatchTypeOptions, slug } from "./tournament";
 
 const useMock = () => process.env.USE_MOCK_DB === "true";
 const DUPLICATE_NAME_CODE = "DUPLICATE_TOURNAMENT_NAME";
@@ -36,6 +38,7 @@ export async function listTournaments() {
     select: {
       id: true,
       name: true,
+      type: true,
       createdBy: true,
       updatedBy: true,
       createdAt: true,
@@ -59,6 +62,7 @@ export async function getTournament(id) {
     include: {
       categories: true,
       matchTypes: true,
+      fixtures: true,
       teams: { include: { players: true } },
       results: true,
     },
@@ -68,6 +72,7 @@ export async function getTournament(id) {
   return {
     id: record.id,
     name: record.name,
+    type: record.type || "team",
     createdBy: record.createdBy || null,
     updatedBy: record.updatedBy || null,
     categories: record.categories.map((c) => ({ key: c.key, count: c.count })),
@@ -84,10 +89,46 @@ export async function getTournament(id) {
         name: p.name || "",
       })),
     })),
+    fixtures: record.fixtures.map((f) => ({
+      key: f.key,
+      t1: f.t1,
+      t2: f.t2,
+    })),
     scores,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
   };
+}
+
+export async function getProfiles() {
+  if (useMock()) return getProfilesMock();
+  const prisma = await getPrisma();
+  const rows = await prisma.profile.findMany({ orderBy: { name: "asc" } });
+  return rows.map((p) => ({
+    id: p.id,
+    name: p.name,
+    role: p.role,
+    phone: p.phone || "",
+  }));
+}
+
+export async function replaceProfiles(profiles) {
+  if (useMock()) return updateProfilesMock(profiles);
+  const prisma = await getPrisma();
+  await prisma.$transaction(async (tx) => {
+    await tx.profile.deleteMany({});
+    const data = (profiles || [])
+      .map((p) => ({
+        name: p.name,
+        role: p.role || "player",
+        phone: p.phone || null,
+      }))
+      .filter((p) => p.name);
+    if (data.length) {
+      await tx.profile.createMany({ data });
+    }
+  });
+  return getProfiles();
 }
 
 export async function createTournament(payload) {
@@ -101,6 +142,7 @@ export async function createTournament(payload) {
     const tournament = await tx.tournament.create({
       data: {
         name: data.name,
+        type: data.type || "team",
         createdBy: data.createdBy || null,
         updatedBy: data.updatedBy || data.createdBy || null,
       },
@@ -143,7 +185,7 @@ export async function updateTournament(id, payload) {
     await tx.matchTypeConfig.deleteMany({ where: { tournamentId: id } });
     await tx.tournament.update({
       where: { id },
-      data: { name: data.name, updatedBy: data.updatedBy || null },
+      data: { name: data.name, type: data.type || "team", updatedBy: data.updatedBy || null },
     });
     await insertRelated(tx, id, data);
     return true;
@@ -165,9 +207,11 @@ export async function deleteTournament(id) {
 function normalizePayload(payload) {
   return {
     name: payload?.name || "Untitled Tournament",
+    type: payload?.type || "team",
     categories: Array.isArray(payload?.categories) ? payload.categories : [],
     matchTypeConfig: payload?.matchTypeConfig || {},
     teams: Array.isArray(payload?.teams) ? payload.teams : [],
+    fixtures: Array.isArray(payload?.fixtures) ? payload.fixtures : [],
     scores: payload?.scores || {},
     createdBy: payload?.createdBy || null,
     updatedBy: payload?.updatedBy || null,
@@ -235,7 +279,7 @@ async function insertRelated(tx, tournamentId, data) {
     }
   }
 
-  const fixtures = buildFixtures(data.teams);
+  const fixtures = data.fixtures.length ? data.fixtures : buildFixtures(data.teams);
   if (fixtures.length) {
     await tx.fixture.createMany({
       data: fixtures.map((f) => ({
@@ -247,17 +291,28 @@ async function insertRelated(tx, tournamentId, data) {
     });
   }
 
-  const matchTypeOptions = buildMatchTypeOptions(data.categories);
-  const matchRows = buildMatchRows(matchTypeOptions, data.matchTypeConfig).map(
-    (row) => ({
-      tournamentId,
-      rowNo: row.id,
-      typeKey: row.typeKey,
-      typeLabel: row.label,
-      catA: row.categories[0],
-      catB: row.categories[1],
-    })
-  );
+  const matchTypeOptions =
+    data.type === "team" ? buildMatchTypeOptions(data.categories) : [];
+  const matchRows =
+    data.type === "team"
+      ? buildMatchRows(matchTypeOptions, data.matchTypeConfig).map((row) => ({
+          tournamentId,
+          rowNo: row.id,
+          typeKey: row.typeKey,
+          typeLabel: row.label,
+          catA: row.categories[0],
+          catB: row.categories[1],
+        }))
+      : [
+          {
+            tournamentId,
+            rowNo: 1,
+            typeKey: "P__P",
+            typeLabel: data.type === "singles" ? "S" : "D",
+            catA: "P",
+            catB: "P",
+          },
+        ];
   if (matchRows.length) {
     await tx.matchRow.createMany({ data: matchRows });
   }
@@ -266,20 +321,6 @@ async function insertRelated(tx, tournamentId, data) {
   if (results.length) {
     await tx.matchResult.createMany({ data: results });
   }
-}
-
-function buildFixtures(teams) {
-  const list = [];
-  for (let i = 0; i < teams.length; i++) {
-    for (let j = i + 1; j < teams.length; j++) {
-      list.push({
-        key: `${teams[i].name} vs ${teams[j].name}`,
-        t1: teams[i].name,
-        t2: teams[j].name,
-      });
-    }
-  }
-  return list;
 }
 
 function buildResultsFromScores(tournamentId, scores) {

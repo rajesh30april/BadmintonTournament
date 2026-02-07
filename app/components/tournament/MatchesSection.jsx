@@ -12,10 +12,13 @@ export default function MatchesSection({
   matchRows = [],
   scores = {},
   upsertScore = () => {},
+  playerSlots = 2,
   readOnly = false,
 }) {
   const [query, setQuery] = useState("");
   const normalizedQuery = query.trim().toLowerCase();
+  const safeFixtures = Array.isArray(fixtures) ? fixtures : [];
+  const safeMatchRows = Array.isArray(matchRows) ? matchRows : [];
   const teamByName = new Map((teams || []).map((team) => [team.name, team]));
   const teamLookup = new Map(
     (teams || []).map((team) => {
@@ -51,19 +54,17 @@ export default function MatchesSection({
       parts.push(
         t1p1,
         getPlayerName(t1, t1p1),
-        t1p2,
-        getPlayerName(t1, t1p2),
+        ...(playerSlots === 2 ? [t1p2, getPlayerName(t1, t1p2)] : []),
         t2p1,
         getPlayerName(t2, t2p1),
-        t2p2,
-        getPlayerName(t2, t2p2)
+        ...(playerSlots === 2 ? [t2p2, getPlayerName(t2, t2p2)] : [])
       );
     });
     return parts.filter(Boolean).join(" ").toLowerCase();
   };
   const uniqueFixtures = (() => {
     const seen = new Set();
-    return fixtures.filter((m) => {
+    return safeFixtures.filter((m) => {
       if (seen.has(m.key)) return false;
       seen.add(m.key);
       return true;
@@ -93,8 +94,36 @@ export default function MatchesSection({
     }
   }, [filteredFixtures, selectedMatch, onSelectMatch]);
 
+  const rowMatchesQuery = (row, t1, t2) => {
+    if (!normalizedQuery) return true;
+    const rowScore = scores?.[selectedMatch]?.[row.id] || {};
+    const t1p1 = rowScore.t1Player1 || "";
+    const t1p2 = rowScore.t1Player2 || "";
+    const t2p1 = rowScore.t2Player1 || "";
+    const t2p2 = rowScore.t2Player2 || "";
+    const t1Name1 = getPlayerName(t1, t1p1);
+    const t1Name2 = getPlayerName(t1, t1p2);
+    const t2Name1 = getPlayerName(t2, t2p1);
+    const t2Name2 = getPlayerName(t2, t2p2);
+    const parts = [
+      t1,
+      t2,
+      t1p1,
+      t1Name1,
+      ...(playerSlots === 2 ? [t1p2, t1Name2] : []),
+      t2p1,
+      t2Name1,
+      ...(playerSlots === 2 ? [t2p2, t2Name2] : []),
+      rowScore.t1 ?? "",
+      rowScore.t2 ?? "",
+    ]
+      .map((value) => String(value || "").toLowerCase())
+      .filter(Boolean);
+    return parts.some((value) => value.includes(normalizedQuery));
+  };
+
   const missingData = selectedMatch
-    ? matchRows.some((row) => {
+    ? safeMatchRows.some((row) => {
         const rowScore = scores[selectedMatch]?.[row.id] || {};
         const p1 = rowScore.t1Player1 || "";
         const p2 = rowScore.t1Player2 || "";
@@ -103,7 +132,9 @@ export default function MatchesSection({
         const t1 = rowScore.t1 ?? "";
         const t2 = rowScore.t2 ?? "";
         const w = rowScore.winner || "";
-        return !p1 || !p2 || !p3 || !p4 || t1 === "" || t2 === "" || !w;
+        const missingPlayers =
+          playerSlots === 1 ? !p1 || !p3 : !p1 || !p2 || !p3 || !p4;
+        return missingPlayers || t1 === "" || t2 === "" || !w;
       })
     : false;
 
@@ -126,7 +157,7 @@ export default function MatchesSection({
             />
           </div>
 
-          {fixtures.length === 0 ? (
+          {safeFixtures.length === 0 ? (
             <div className="px-4 pb-4 text-sm text-slate-600">
               Add at least 2 teams in Setup.
             </div>
@@ -170,20 +201,27 @@ export default function MatchesSection({
             </div>
 
             {(() => {
-              const fx = fixtures.find((f) => f.key === selectedMatch);
+              const fx = safeFixtures.find((f) => f.key === selectedMatch);
               const t1 = fx?.t1 || "Team 1";
               const t2 = fx?.t2 || "Team 2";
               const team1 = teams.find((t) => t.name === t1);
               const team2 = teams.find((t) => t.name === t2);
+              const visibleRows = safeMatchRows.filter((row) =>
+                rowMatchesQuery(row, t1, t2)
+              );
 
               return (
                 <div className="grid gap-3">
-                  {matchRows.length === 0 ? (
+                  {safeMatchRows.length === 0 ? (
                     <div className="text-sm text-slate-600">
                       No match rows configured. Set counts in Setup.
                     </div>
+                  ) : visibleRows.length === 0 ? (
+                    <div className="text-sm text-slate-600">
+                      No matches found for "{query}".
+                    </div>
                   ) : null}
-                  {matchRows.map((row) => {
+                  {visibleRows.map((row) => {
                     const [cat1, cat2] = row.categories;
                     const sameCat = cat1 === cat2;
                     const team1Cat1 = (team1?.players || []).filter(
@@ -236,7 +274,11 @@ export default function MatchesSection({
                             </Select>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-2">
+                          <div
+                            className={`grid ${
+                              playerSlots === 1 ? "grid-cols-1" : "grid-cols-2"
+                            } gap-2`}
+                          >
                             <div className="grid gap-2">
                               <div className="text-xs font-bold text-slate-600 mb-1">
                                 {t1} Players
@@ -262,29 +304,31 @@ export default function MatchesSection({
                                   </option>
                                 ))}
                               </Select>
-                              <Select
-                                value={t1p2}
-                                onChange={(e) =>
-                                  upsertScore(
-                                    selectedMatch,
-                                    row.id,
-                                    "t1Player2",
-                                    e.target.value
-                                  )
-                                }
-                                disabled={readOnly}
-                              >
-                                <option value="">
-                                  Select {sameCat ? cat1 : cat2} Player
-                                </option>
-                                {(sameCat ? team1Opts1 : team1Opts2)
-                                  .filter((p) => (sameCat ? p.value !== t1p1 : true))
-                                  .map((p) => (
-                                    <option key={p.value} value={p.value}>
-                                      {p.label}
-                                    </option>
-                                  ))}
-                              </Select>
+                              {playerSlots === 2 ? (
+                                <Select
+                                  value={t1p2}
+                                  onChange={(e) =>
+                                    upsertScore(
+                                      selectedMatch,
+                                      row.id,
+                                      "t1Player2",
+                                      e.target.value
+                                    )
+                                  }
+                                  disabled={readOnly}
+                                >
+                                  <option value="">
+                                    Select {sameCat ? cat1 : cat2} Player
+                                  </option>
+                                  {(sameCat ? team1Opts1 : team1Opts2)
+                                    .filter((p) => (sameCat ? p.value !== t1p1 : true))
+                                    .map((p) => (
+                                      <option key={p.value} value={p.value}>
+                                        {p.label}
+                                      </option>
+                                    ))}
+                                </Select>
+                              ) : null}
                             </div>
                             <div className="grid gap-2">
                               <div className="text-xs font-bold text-slate-600 mb-1">
@@ -311,29 +355,31 @@ export default function MatchesSection({
                                   </option>
                                 ))}
                               </Select>
-                              <Select
-                                value={t2p2}
-                                onChange={(e) =>
-                                  upsertScore(
-                                    selectedMatch,
-                                    row.id,
-                                    "t2Player2",
-                                    e.target.value
-                                  )
-                                }
-                                disabled={readOnly}
-                              >
-                                <option value="">
-                                  Select {sameCat ? cat1 : cat2} Player
-                                </option>
-                                {(sameCat ? team2Opts1 : team2Opts2)
-                                  .filter((p) => (sameCat ? p.value !== t2p1 : true))
-                                  .map((p) => (
-                                    <option key={p.value} value={p.value}>
-                                      {p.label}
-                                    </option>
-                                  ))}
-                              </Select>
+                              {playerSlots === 2 ? (
+                                <Select
+                                  value={t2p2}
+                                  onChange={(e) =>
+                                    upsertScore(
+                                      selectedMatch,
+                                      row.id,
+                                      "t2Player2",
+                                      e.target.value
+                                    )
+                                  }
+                                  disabled={readOnly}
+                                >
+                                  <option value="">
+                                    Select {sameCat ? cat1 : cat2} Player
+                                  </option>
+                                  {(sameCat ? team2Opts1 : team2Opts2)
+                                    .filter((p) => (sameCat ? p.value !== t2p1 : true))
+                                    .map((p) => (
+                                      <option key={p.value} value={p.value}>
+                                        {p.label}
+                                      </option>
+                                    ))}
+                                </Select>
+                              ) : null}
                             </div>
                           </div>
 

@@ -3,9 +3,14 @@ import { Button, Card, CardContent, Input, Select } from "../ui";
 export default function SetupSection({
   tournamentName,
   setTournamentName,
+  tournamentType,
+  setTournamentType,
+  configTab,
+  setConfigTab,
   tournaments,
   selectedTournamentId,
-  setSelectedTournamentId,
+  deleteTournamentId,
+  setDeleteTournamentId,
   selectedTournament,
   currentUser,
   loadingTournaments,
@@ -16,6 +21,7 @@ export default function SetupSection({
   onRefreshTournaments,
   onLoadTournament,
   onDeleteTournament,
+  onAddTournament,
   categories,
   categoriesByKey,
   categoryKeysSorted,
@@ -27,58 +33,86 @@ export default function SetupSection({
   matchTypeConfig,
   setMatchTypeConfig,
   teams,
-  totalPlayers,
-  newTeamName,
-  setNewTeamName,
   addCategory,
   updateCategoryCount,
   removeCategory,
   applySetupToExistingTeams,
-  addTeam,
 }) {
   const readOnly = currentUser?.role !== "admin" && currentUser?.access !== "write";
+  const isTeamType = tournamentType === "team";
+  const configTabs = isTeamType
+    ? [
+        { key: "categories", label: "Categories" },
+        { key: "matchtypes", label: "Match Types" },
+        { key: "teams", label: "Teams" },
+      ]
+    : [
+        { key: "teams", label: tournamentType === "singles" ? "Players" : "Pairs" },
+      ];
 
   return (
     <Card>
       <CardContent className="grid gap-4">
         <details className="rounded-2xl border border-slate-200 bg-white p-4" open>
           <summary className="cursor-pointer text-sm font-extrabold text-slate-900">
-            Tournaments
+            Create Tournament
           </summary>
           <div className="mt-3 grid gap-2">
-          <div className="grid grid-cols-1 gap-2">
+            <Input
+              value={tournamentName}
+              onChange={(e) => setTournamentName(e.target.value)}
+              placeholder="Tournament name"
+              disabled={readOnly}
+            />
             <Select
-              value={selectedTournamentId}
-              onChange={(e) => setSelectedTournamentId(e.target.value)}
+              value={tournamentType}
+              onChange={(e) => setTournamentType(e.target.value)}
+              disabled={readOnly}
             >
-              <option value="">Select tournament</option>
+              <option value="team">Team Tournament</option>
+              <option value="doubles">Doubles (Pairs)</option>
+              <option value="singles">Singles</option>
+            </Select>
+            <Button variant="outline" onClick={onAddTournament} disabled={readOnly}>
+              Create Tournament
+            </Button>
+          </div>
+          {readOnly ? (
+            <div className="mt-2 text-xs text-amber-600">
+              Read-only access. Ask admin to enable write access.
+            </div>
+          ) : null}
+        </details>
+
+        <details className="rounded-2xl border border-slate-200 bg-white p-4" open>
+          <summary className="cursor-pointer text-sm font-extrabold text-slate-900">
+            Manage Tournament
+          </summary>
+          <div className="mt-3 grid gap-2">
+            <Select
+              value={deleteTournamentId}
+              onChange={(e) => setDeleteTournamentId(e.target.value)}
+            >
+              <option value="">Select tournament to delete</option>
               {tournaments.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.name || t.id}
                 </option>
               ))}
             </Select>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <Button variant="outline" onClick={onLoadTournament} disabled={!selectedTournamentId}>
-              Load
-            </Button>
+            <div className="text-xs text-slate-500">
+              Delete uses this selection only. Load a tournament from the banner.
+            </div>
             <Button
               variant="outline"
               onClick={onDeleteTournament}
-              disabled={!selectedTournamentId || readOnly}
+              disabled={!deleteTournamentId || readOnly}
             >
-              Delete
+              Delete Tournament
             </Button>
-          </div>
             {selectedTournament?.updatedBy ? (
               <div className="text-xs text-slate-500">
                 Last saved by <b>{selectedTournament.updatedBy}</b>
-              </div>
-            ) : null}
-            {readOnly ? (
-              <div className="text-xs text-amber-600">
-                Read-only access. Ask admin to enable write access.
               </div>
             ) : null}
             {loadingSelectedTournament ? (
@@ -92,24 +126,37 @@ export default function SetupSection({
         <div>
           <div className="text-xl font-extrabold">Setup</div>
           <div className="text-sm text-slate-500">
-            Configure categories and create teams
+            {isTeamType
+              ? "Configure categories and create teams"
+              : "Register pairs/players and add match history"}
           </div>
         </div>
 
-        <details className="rounded-2xl border border-slate-200 bg-white p-4" open>
-          <summary className="cursor-pointer text-sm font-extrabold text-slate-900">
-            Tournament Name
-          </summary>
-          <div className="mt-3">
-          <Input
-            value={tournamentName}
-            onChange={(e) => setTournamentName(e.target.value)}
-            placeholder="Ex: Friday League"
-            disabled={readOnly}
-          />
+        <div className="border-b border-slate-200">
+          <div className="-mb-px flex gap-2 overflow-x-auto pb-1">
+            {configTabs.map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setConfigTab(tab.key)}
+                className={`whitespace-nowrap rounded-t-xl px-3 py-2 text-xs font-semibold ${
+                  configTab === tab.key
+                    ? "border-b-2 border-slate-900 text-slate-900"
+                    : "border-b-2 border-transparent text-slate-500"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
-        </details>
+          {!selectedTournamentId ? (
+            <div className="py-2 text-xs text-slate-500">
+              Select a tournament to edit its config.
+            </div>
+          ) : null}
+        </div>
 
+        {isTeamType && (!selectedTournamentId || configTab === "categories") && (
         <details className="rounded-2xl border border-slate-200 bg-white p-4" open>
           <summary className="cursor-pointer text-sm font-extrabold text-slate-900">
             Player Categories (Global)
@@ -193,7 +240,7 @@ export default function SetupSection({
             <Button
               className="w-full"
               onClick={applySetupToExistingTeams}
-              disabled={teams.length === 0 || readOnly}
+              disabled={teams.length === 0 || readOnly || !isTeamType}
             >
               Apply to Teams
             </Button>
@@ -208,7 +255,9 @@ export default function SetupSection({
             </b>
           </div>
         </details>
+        )}
 
+        {isTeamType && (!selectedTournamentId || configTab === "matchtypes") && (
         <details className="rounded-2xl border border-slate-200 bg-white p-4" open>
           <summary className="cursor-pointer text-sm font-extrabold text-slate-900">
             Match Type Counts
@@ -249,47 +298,15 @@ export default function SetupSection({
             </div>
           )}
         </details>
+        )}
 
-        <details className="rounded-2xl border border-slate-200 bg-white p-4" open>
-          <summary className="cursor-pointer text-sm font-extrabold text-slate-900">
-            Teams
-          </summary>
-          <div className="mt-3 flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500">
-              {teams.length} teams • {totalPlayers} players
-            </span>
+        {configTab === "teams" && (
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 text-xs text-slate-600">
+            {selectedTournamentId
+              ? "Open the Teams tab to add teams and members."
+              : "No tournament selected. Choose one above to edit teams."}
           </div>
-
-          <div className="mt-2 flex gap-2">
-            <Input
-              placeholder={categories.length ? "Team name" : "Add categories first"}
-              value={newTeamName}
-              onChange={(e) => setNewTeamName(e.target.value)}
-              disabled={!categories.length || readOnly}
-            />
-            <Button
-              className="shrink-0"
-              onClick={addTeam}
-              disabled={!categories.length || readOnly}
-            >
-              + Add
-            </Button>
-          </div>
-          {teams.length ? (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {teams.map((t) => (
-                <span
-                  key={t.name}
-                  className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700"
-                >
-                  {t.name}
-                </span>
-              ))}
-            </div>
-          ) : (
-            <div className="mt-3 text-xs text-slate-500">No teams added yet.</div>
-          )}
-        </details>
+        )}
 
         <div className="hidden" />
       </CardContent>

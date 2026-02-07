@@ -14,6 +14,7 @@ let tournaments = dedupeByName([
   {
     id: "t-001",
     name: "Friday League",
+    type: "team",
     categories: [
       { key: "A", count: 1 },
       { key: "B", count: 1 },
@@ -54,6 +55,15 @@ let tournaments = dedupeByName([
   },
 ]);
 
+let globalProfiles = [
+  { id: "p-001", name: "Rajesh", role: "player", phone: "9000000001" },
+  { id: "p-002", name: "Vijay", role: "player", phone: "9000000002" },
+  { id: "p-003", name: "Asha", role: "player", phone: "9000000003" },
+  { id: "p-004", name: "Pooja", role: "player", phone: "9000000004" },
+  { id: "p-005", name: "Arun", role: "owner", phone: "9000000005" },
+  { id: "p-006", name: "Meera", role: "owner", phone: "9000000006" },
+];
+
 export function listTournaments() {
   return tournaments;
 }
@@ -62,12 +72,22 @@ export function getTournament(id) {
   return tournaments.find((t) => t.id === id) || null;
 }
 
+export function getProfiles() {
+  return globalProfiles;
+}
+
+export function updateProfiles(profiles) {
+  globalProfiles = profiles || [];
+  return globalProfiles;
+}
+
 export function createTournament(payload) {
   const id = `t-${Math.random().toString(36).slice(2, 8)}`;
   const createdBy = payload?.createdBy || payload?.updatedBy || "unknown";
   const record = {
     id,
     name: payload?.name || "Untitled Tournament",
+    type: payload?.type || "team",
     categories: payload?.categories || [],
     matchTypeConfig: payload?.matchTypeConfig || {},
     teams: payload?.teams || [],

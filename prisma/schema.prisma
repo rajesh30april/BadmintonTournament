@@ -11,6 +11,7 @@ datasource db {
 model Tournament {
   id         String            @id @default(cuid())
   name       String
+  type       String            @default("team") @db.NVarChar(20)
   createdBy  String?           @db.NVarChar(80)
   updatedBy  String?           @db.NVarChar(80)
   createdAt  DateTime          @default(now())
@@ -82,6 +83,13 @@ model Fixture {
   tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
 
   @@unique([tournamentId, key])
+}
+
+model Profile {
+  id    String  @id @default(cuid())
+  name  String  @db.NVarChar(80)
+  role  String  @db.NVarChar(20)
+  phone String? @db.NVarChar(30)
 }
 
 model MatchRow {

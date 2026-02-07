@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Sora, Playfair_Display } from "next/font/google";
+import TopBanner from "../components/tournament/TopBanner";
 
 const sora = Sora({ subsets: ["latin"], weight: ["400", "600", "700"] });
 const playfair = Playfair_Display({ subsets: ["latin"], weight: ["600", "700"] });
@@ -56,6 +57,7 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-slate-50 p-6">
       <div className="mx-auto max-w-3xl space-y-6">
+        <TopBanner title="Admin Panel" subtitle="Manage user roles and access." />
         <div className="flex items-center justify-between">
           <div>
             <h1 className={`${playfair.className} text-3xl text-slate-900`}>
@@ -68,7 +70,7 @@ export default function AdminPage() {
           <button
             type="button"
             onClick={logout}
-            className={`${sora.className} rounded-xl bg-blue-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-800`}
+            className={`${sora.className} rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800`}
           >
             Log out
           </button>

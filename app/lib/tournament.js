@@ -44,3 +44,17 @@ export function buildMatchRows(matchTypeOptions, matchTypeConfig) {
   }
   return rows;
 }
+
+export function buildFixtures(teams) {
+  const list = [];
+  for (let i = 0; i < teams.length; i++) {
+    for (let j = i + 1; j < teams.length; j++) {
+      list.push({
+        key: `${teams[i].name} vs ${teams[j].name}`,
+        t1: teams[i].name,
+        t2: teams[j].name,
+      });
+    }
+  }
+  return list;
+}
