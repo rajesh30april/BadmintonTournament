@@ -1,12 +1,23 @@
 import { useMemo, useState } from "react";
 import { Card, CardContent, Input } from "../ui";
 
-export default function ReportsSection({ fixtures, scores, teams }) {
+export default function ReportsSection({ fixtures, scores, teams, matchRows = [] }) {
   const [query, setQuery] = useState("");
   const normalizedQuery = query.trim().toLowerCase();
   const teamStats = new Map();
   const playerStats = new Map();
   const headToHead = new Map();
+  const rowMeta = useMemo(() => {
+    const map = new Map();
+    (matchRows || []).forEach((row) => {
+      map.set(String(row.id), {
+        typeLabel: row.typeLabel || row.label || "",
+        catA: row.catA || row.categories?.[0] || "",
+        catB: row.catB || row.categories?.[1] || "",
+      });
+    });
+    return map;
+  }, [matchRows]);
 
   const getTeam = (name) => {
     if (!teamStats.has(name)) {
@@ -37,7 +48,7 @@ export default function ReportsSection({ fixtures, scores, teams }) {
     return playerStats.get(key);
   };
 
-  const addHeadToHead = (t1, t2, winner) => {
+  const addHeadToHead = (t1, t2, winner, categoryKey, typeLabel) => {
     const key = [t1, t2].sort().join("__");
     if (!headToHead.has(key)) {
       headToHead.set(key, {
@@ -47,22 +58,60 @@ export default function ReportsSection({ fixtures, scores, teams }) {
         played: 0,
         t1Wins: 0,
         t2Wins: 0,
+        byCategory: {},
       });
     }
     const row = headToHead.get(key);
     row.played += 1;
     if (winner === "t1") row.t1Wins += 1;
     if (winner === "t2") row.t2Wins += 1;
+    const cat = categoryKey || typeLabel || "Other";
+    if (!row.byCategory[cat]) {
+      row.byCategory[cat] = { played: 0, t1Wins: 0, t2Wins: 0 };
+    }
+    row.byCategory[cat].played += 1;
+    if (winner === "t1") row.byCategory[cat].t1Wins += 1;
+    if (winner === "t2") row.byCategory[cat].t2Wins += 1;
+  };
+
+  const resolveCategoryFromRow = (row) => {
+    if (!row || !teams?.length) return "";
+    for (const team of teams) {
+      for (const player of team.players || []) {
+        if (player.rank === row.t1Player1) return player.category || "";
+        if (player.rank === row.t1Player2) return player.category || "";
+        if (player.rank === row.t2Player1) return player.category || "";
+        if (player.rank === row.t2Player2) return player.category || "";
+      }
+    }
+    return "";
+  };
+
+  const getCategoryFromRank = (rank) => {
+    if (!rank) return "";
+    const match = String(rank).match(/^[A-Za-z]+/);
+    return match ? match[0].toUpperCase() : "";
   };
 
   fixtures.forEach((fx) => {
     const matchScores = scores?.[fx.key] || {};
-    Object.values(matchScores).forEach((row) => {
+    Object.entries(matchScores).forEach(([rowId, row]) => {
       const t1Score = Number(row?.t1 ?? 0) || 0;
       const t2Score = Number(row?.t2 ?? 0) || 0;
       const winner = row?.winner || "";
       const t1 = fx.t1;
       const t2 = fx.t2;
+      const meta = rowMeta.get(String(rowId));
+      const metaCategory =
+        meta?.catA && meta?.catB ? `${meta.catA}${meta.catB}` : "";
+      const category =
+        metaCategory ||
+        resolveCategoryFromRow(row) ||
+        getCategoryFromRank(row?.t1Player1) ||
+        getCategoryFromRank(row?.t1Player2) ||
+        getCategoryFromRank(row?.t2Player1) ||
+        getCategoryFromRank(row?.t2Player2) ||
+        "";
       const team1 = getTeam(t1);
       const team2 = getTeam(t2);
 
@@ -81,7 +130,7 @@ export default function ReportsSection({ fixtures, scores, teams }) {
           team2.wins += 1;
           team1.losses += 1;
         }
-        addHeadToHead(t1, t2, winner);
+        addHeadToHead(t1, t2, winner, category, meta?.typeLabel);
       }
 
       const team1Roster = teams.find((t) => t.name === t1)?.players || [];
@@ -213,6 +262,19 @@ export default function ReportsSection({ fixtures, scores, teams }) {
                     Played {row.played} • {row.t1} {row.t1Wins} - {row.t2Wins}{" "}
                     {row.t2}
                   </div>
+                  {row.byCategory && Object.keys(row.byCategory).length ? (
+                    <div className="mt-2 grid gap-1 text-[11px] text-slate-600">
+                      {Object.entries(row.byCategory).map(([cat, stats]) => (
+                        <div key={cat} className="flex items-center justify-between">
+                          <span className="font-semibold">{cat}</span>
+                          <span>
+                            {row.t1} {stats.t1Wins} - {stats.t2Wins} {row.t2} •{" "}
+                            {stats.played} played
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
                 </details>
               ))}
             </div>

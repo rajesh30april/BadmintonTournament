@@ -779,7 +779,12 @@ export default function Page() {
         {tab === "standings" && <StandingsSection standings={standings} />}
 
         {tab === "reports" && (
-          <ReportsSection fixtures={fixtures} scores={scores} teams={teams} />
+          <ReportsSection
+            fixtures={fixtures}
+            scores={scores}
+            teams={teams}
+            matchRows={matchRows}
+          />
         )}
       </div>
 
