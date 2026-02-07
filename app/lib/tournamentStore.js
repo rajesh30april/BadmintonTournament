@@ -156,33 +156,20 @@ export async function createTournament(payload) {
 export async function updateTournament(id, payload) {
   if (!id) return null;
   const scoresOnly =
-    payload &&
-    Object.keys(payload).every((key) => key === "scores" || key === "updatedBy");
+    payload?.__scoresOnly === true ||
+    (payload &&
+      Object.keys(payload).every(
+        (key) => key === "scores" || key === "updatedBy" || key === "__scoresOnly"
+      )) ||
+    (payload?.scores &&
+      !payload?.name &&
+      !payload?.type &&
+      !payload?.teams &&
+      !payload?.categories &&
+      !payload?.matchTypeConfig &&
+      !payload?.fixtures);
   if (scoresOnly) {
-    if (useMock()) {
-      return updateMock(id, {
-        scores: payload.scores || {},
-        updatedBy: payload.updatedBy || null,
-      });
-    }
-    const prisma = await getPrisma();
-    const existing = await prisma.tournament.findUnique({
-      where: { id },
-      select: { id: true },
-    });
-    if (!existing) return null;
-    await prisma.$transaction(async (tx) => {
-      await tx.matchResult.deleteMany({ where: { tournamentId: id } });
-      const results = buildResultsFromScores(id, payload.scores || {});
-      if (results.length) {
-        await tx.matchResult.createMany({ data: results });
-      }
-      await tx.tournament.update({
-        where: { id },
-        data: { updatedBy: payload.updatedBy || null },
-      });
-    });
-    return getTournament(id);
+    return updateTournamentScoresOnly(id, payload?.scores, payload?.updatedBy);
   }
   const data = normalizePayload(payload);
   if (useMock()) {
@@ -220,6 +207,34 @@ export async function updateTournament(id, payload) {
     return true;
   });
   if (!updated) return null;
+  return getTournament(id);
+}
+
+export async function updateTournamentScoresOnly(id, scores, updatedBy) {
+  if (!id) return null;
+  if (useMock()) {
+    return updateMock(id, {
+      scores: scores || {},
+      updatedBy: updatedBy || null,
+    });
+  }
+  const prisma = await getPrisma();
+  const existing = await prisma.tournament.findUnique({
+    where: { id },
+    select: { id: true },
+  });
+  if (!existing) return null;
+  await prisma.$transaction(async (tx) => {
+    await tx.matchResult.deleteMany({ where: { tournamentId: id } });
+    const results = buildResultsFromScores(id, scores || {});
+    if (results.length) {
+      await tx.matchResult.createMany({ data: results });
+    }
+    await tx.tournament.update({
+      where: { id },
+      data: { updatedBy: updatedBy || null },
+    });
+  });
   return getTournament(id);
 }
 

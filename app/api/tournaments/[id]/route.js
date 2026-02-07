@@ -4,6 +4,7 @@ import {
   getTournament,
   isDuplicateNameError,
   updateTournament,
+  updateTournamentScoresOnly,
 } from "../../../lib/tournamentStore";
 import { getSessionFromRequest, requireScoreOrWrite, requireWrite } from "../../../lib/auth";
 
@@ -37,10 +38,14 @@ export async function PUT(request, { params }) {
       }
     });
     payload.scores = scoresOnly;
+    payload.__scoresOnly = true;
   }
   try {
     const { id } = await params;
-    const updated = await updateTournament(id, payload);
+    const updated =
+      session?.role !== "admin" && session?.access === "score"
+        ? await updateTournamentScoresOnly(id, payload.scores, payload.updatedBy)
+        : await updateTournament(id, payload);
     if (!updated) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
