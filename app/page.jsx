@@ -23,7 +23,7 @@ export default function Page() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [tournamentName, setTournamentName] = useState("");
   const [tournamentType, setTournamentType] = useState("team");
-  const [setupTab, setSetupTab] = useState("name");
+  const [setupTab, setSetupTab] = useState("categories");
   const [tournaments, setTournaments] = useState([]);
   const [selectedTournamentId, setSelectedTournamentId] = useState("");
   const [deleteTournamentId, setDeleteTournamentId] = useState("");
@@ -99,7 +99,7 @@ export default function Page() {
   }, []);
 
   useEffect(() => {
-    setSetupTab("name");
+    setSetupTab(tournamentType === "team" ? "categories" : "teams");
   }, [selectedTournamentId, tournamentType]);
 
   useEffect(() => {
@@ -311,18 +311,14 @@ export default function Page() {
 
   const selectedTournament =
     tournaments.find((t) => t.id === selectedTournamentId) || null;
+  const isScorer =
+    currentUser?.role !== "admin" && currentUser?.access === "score";
   const canUpdate =
     Boolean(selectedTournamentId) &&
     (currentUser?.role === "admin" ||
       currentUser?.access === "write" ||
       currentUser?.access === "score");
-  const canSave =
-    canUpdate &&
-    !(
-      tab === "setup" &&
-      currentUser?.role !== "admin" &&
-      currentUser?.access === "score"
-    );
+  const canSave = canUpdate && (!isScorer || tab === "matches");
   const canEditStructure =
     currentUser?.role === "admin" || currentUser?.access === "write";
   const tabs = ["setup", "profiles", "matches", "standings", "reports"];
@@ -429,7 +425,7 @@ export default function Page() {
       const fixturesPayload = isTeamType ? buildFixtures(teams) : manualFixtures;
       const payload =
         currentUser?.role !== "admin" && currentUser?.access === "score"
-          ? { scores }
+          ? { scores, updatedBy: currentUser?.username || null }
           : {
               name: tournamentName || "Untitled Tournament",
               type: tournamentType,
@@ -438,6 +434,7 @@ export default function Page() {
               teams,
               scores,
               fixtures: fixturesPayload,
+              updatedBy: currentUser?.username || null,
             };
       const res = await fetch(`/api/tournaments/${selectedTournamentId}`, {
         method: "PUT",
@@ -588,7 +585,7 @@ export default function Page() {
         </nav>
       </aside>
 
-      <div className="p-4 grid gap-4 pb-20">
+      <div className="px-3 sm:px-4 pb-24 grid gap-4 max-w-6xl mx-auto w-full">
         <TopBanner
           title="Badminton Tournament"
           titleSlot={
@@ -657,17 +654,17 @@ export default function Page() {
         )}
 
         {tab === "profiles" && (
-          <ProfilesSection
-            profiles={profiles}
-            setProfiles={setProfiles}
-            onSave={saveProfiles}
-            saving={savingTournament}
-            canSave={currentUser?.role === "admin" || currentUser?.access === "write"}
-            hasTournament={true}
-            readOnly={
-              currentUser?.role !== "admin" && currentUser?.access !== "write"
-            }
-          />
+            <ProfilesSection
+              profiles={profiles}
+              setProfiles={setProfiles}
+              onSave={saveProfiles}
+              saving={savingTournament}
+              canSave={currentUser?.role === "admin" || currentUser?.access === "write"}
+              hasTournament={true}
+              readOnly={
+                currentUser?.role !== "admin" && currentUser?.access !== "write"
+              }
+            />
         )}
 
         {tab === "setup" && setupTab === "teams" && (
@@ -786,34 +783,36 @@ export default function Page() {
         )}
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 z-20 bg-slate-50/95 px-4 py-3 border-t border-slate-200">
-        <div className="grid grid-cols-1 items-center gap-2 mb-2">
-          <button
-            type="button"
-            onClick={updateTournament}
-            disabled={!canSave || savingTournament}
-            className="w-full rounded-2xl bg-slate-900 px-8 py-3 text-base font-semibold text-white shadow-sm hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {savingTournament ? "Saving..." : "Save"}
-          </button>
-        </div>
-        <div className="grid grid-cols-2 items-center gap-2">
-          <button
-            type="button"
-            onClick={goBack}
-            disabled={!canGoBack}
-            className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            ← Back
-          </button>
-          <button
-            type="button"
-            onClick={goNext}
-            disabled={!canGoNext}
-            className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            Next →
-          </button>
+      <div className="fixed bottom-0 left-0 right-0 z-20 bg-slate-50/95 px-3 sm:px-4 py-3 border-t border-slate-200">
+        <div className="max-w-6xl mx-auto w-full grid gap-2">
+          <div className="grid grid-cols-1 items-center gap-2 mb-2">
+            <button
+              type="button"
+              onClick={updateTournament}
+              disabled={!canSave || savingTournament}
+              className="w-full rounded-2xl bg-slate-900 px-8 py-3 text-base font-semibold text-white shadow-sm hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {savingTournament ? "Saving..." : "Save"}
+            </button>
+          </div>
+          <div className="grid grid-cols-2 items-center gap-2">
+            <button
+              type="button"
+              onClick={goBack}
+              disabled={!canGoBack}
+              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              ← Back
+            </button>
+            <button
+              type="button"
+              onClick={goNext}
+              disabled={!canGoNext}
+              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Next →
+            </button>
+          </div>
         </div>
       </div>
 

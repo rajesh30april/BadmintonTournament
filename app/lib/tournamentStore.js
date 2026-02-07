@@ -155,6 +155,35 @@ export async function createTournament(payload) {
 
 export async function updateTournament(id, payload) {
   if (!id) return null;
+  const scoresOnly =
+    payload &&
+    Object.keys(payload).every((key) => key === "scores" || key === "updatedBy");
+  if (scoresOnly) {
+    if (useMock()) {
+      return updateMock(id, {
+        scores: payload.scores || {},
+        updatedBy: payload.updatedBy || null,
+      });
+    }
+    const prisma = await getPrisma();
+    const existing = await prisma.tournament.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+    if (!existing) return null;
+    await prisma.$transaction(async (tx) => {
+      await tx.matchResult.deleteMany({ where: { tournamentId: id } });
+      const results = buildResultsFromScores(id, payload.scores || {});
+      if (results.length) {
+        await tx.matchResult.createMany({ data: results });
+      }
+      await tx.tournament.update({
+        where: { id },
+        data: { updatedBy: payload.updatedBy || null },
+      });
+    });
+    return getTournament(id);
+  }
   const data = normalizePayload(payload);
   if (useMock()) {
     const existing = getMock(id);
