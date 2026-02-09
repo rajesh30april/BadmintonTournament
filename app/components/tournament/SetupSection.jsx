@@ -16,6 +16,8 @@ export default function SetupSection({
   loadingTournaments,
   loadingSelectedTournament,
   savingTournament,
+  creatingTournament,
+  deletingTournament,
   loadError,
   loadSuccess,
   onRefreshTournaments,
@@ -73,7 +75,12 @@ export default function SetupSection({
               <option value="doubles">Doubles (Pairs)</option>
               <option value="singles">Singles</option>
             </Select>
-            <Button variant="outline" onClick={onAddTournament} disabled={readOnly}>
+            <Button
+              variant="outline"
+              onClick={onAddTournament}
+              disabled={readOnly}
+              loading={creatingTournament}
+            >
               Create Tournament
             </Button>
           </div>
@@ -107,6 +114,7 @@ export default function SetupSection({
               variant="outline"
               onClick={onDeleteTournament}
               disabled={!deleteTournamentId || readOnly}
+              loading={deletingTournament}
             >
               Delete Tournament
             </Button>

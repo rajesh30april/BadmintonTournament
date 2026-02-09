@@ -39,8 +39,8 @@ export default function TeamsSection({
           {tournamentType === "team"
             ? "Add Team"
             : tournamentType === "singles"
-            ? "Add Player Team"
-            : "Add Pair Team"}
+            ? "Add Player"
+            : "Add Pair"}
         </div>
         <div className="flex gap-2">
           <Input
@@ -79,24 +79,26 @@ export default function TeamsSection({
                 </span>
               </div>
 
-              <div>
-                <div className="text-sm font-bold text-slate-600 mb-1">Owner</div>
-                <Select
-                  value={t.owner || ""}
-                  onChange={(e) => updateOwner(t.name, e.target.value)}
-                  disabled={readOnly || ownerOptions.length === 0}
-                >
-                  <option value="">
-                    {ownerOptions.length ? "Select owner" : "Add owner profiles first"}
-                  </option>
-                  {ownerOptions.map((p) => (
-                    <option key={p.id || p.name} value={p.name}>
-                      {p.name}
-                      {p.phone ? ` • ${p.phone}` : ""}
+              {tournamentType === "team" ? (
+                <div>
+                  <div className="text-sm font-bold text-slate-600 mb-1">Owner</div>
+                  <Select
+                    value={t.owner || ""}
+                    onChange={(e) => updateOwner(t.name, e.target.value)}
+                    disabled={readOnly || ownerOptions.length === 0}
+                  >
+                    <option value="">
+                      {ownerOptions.length ? "Select owner" : "Add owner profiles first"}
                     </option>
-                  ))}
-                </Select>
-              </div>
+                    {ownerOptions.map((p) => (
+                      <option key={p.id || p.name} value={p.name}>
+                        {p.name}
+                        {p.phone ? ` • ${p.phone}` : ""}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              ) : null}
 
               {showCategories ? (
                 categoryKeysSorted.map((k) => {

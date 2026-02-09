@@ -17,7 +17,14 @@ export function CardContent({ className = "", children }) {
   return <div className={cn("p-4", className)}>{children}</div>;
 }
 
-export function Button({ variant = "solid", className = "", children, ...props }) {
+export function Button({
+  variant = "solid",
+  className = "",
+  children,
+  loading = false,
+  loadingText,
+  ...props
+}) {
   const base =
     "btn disabled:opacity-50 disabled:cursor-not-allowed";
   const solid = "btn-primary";
@@ -25,8 +32,20 @@ export function Button({ variant = "solid", className = "", children, ...props }
   const ghost = "btn-ghost";
   const styles = variant === "outline" ? outline : variant === "ghost" ? ghost : solid;
   return (
-    <button className={cn(base, styles, className)} {...props}>
-      {children}
+    <button
+      className={cn(base, styles, className)}
+      aria-busy={loading}
+      disabled={props.disabled || loading}
+      {...props}
+    >
+      {loading ? (
+        <span className="flex items-center gap-2">
+          <span className="inline-flex h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+          <span>{loadingText || children}</span>
+        </span>
+      ) : (
+        children
+      )}
     </button>
   );
 }
@@ -43,13 +62,14 @@ export function Input({ className = "", ...props }) {
   );
 }
 
-export function Select({ className = "", children, ...props }) {
+export function Select({ className = "", children, value, ...props }) {
   return (
     <select
       className={cn(
         "input-base",
         className
       )}
+      value={value == null ? "" : value}
       {...props}
     >
       {children}

@@ -45,8 +45,9 @@ export default function ProfilesSection({
               variant="outline"
               onClick={onSave}
               disabled={!canSave || !hasTournament || saving}
+              loading={saving}
             >
-              {saving ? "Saving..." : "Save Profiles"}
+              Save Profiles
             </Button>
           </div>
           {!hasTournament ? (

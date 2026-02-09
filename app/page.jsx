@@ -29,6 +29,8 @@ export default function Page() {
   const [deleteTournamentId, setDeleteTournamentId] = useState("");
   const [loadingTournaments, setLoadingTournaments] = useState(false);
   const [loadingSelectedTournament, setLoadingSelectedTournament] = useState(false);
+  const [creatingTournament, setCreatingTournament] = useState(false);
+  const [deletingTournament, setDeletingTournament] = useState(false);
   const [savingTournament, setSavingTournament] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [loadSuccess, setLoadSuccess] = useState("");
@@ -375,7 +377,7 @@ export default function Page() {
       setLoadError("Read-only access");
       return;
     }
-    setSavingTournament(true);
+    setCreatingTournament(true);
     setLoadError("");
     setLoadSuccess("");
     try {
@@ -412,7 +414,7 @@ export default function Page() {
     } catch (err) {
       setLoadError(err.message || "Failed to add tournament.");
     } finally {
-      setSavingTournament(false);
+      setCreatingTournament(false);
     }
   };
 
@@ -461,6 +463,7 @@ export default function Page() {
 
   const deleteSelectedTournament = async () => {
     if (!deleteTournamentId) return;
+    setDeletingTournament(true);
     setLoadError("");
     setLoadSuccess("");
     try {
@@ -487,6 +490,8 @@ export default function Page() {
       setLoadSuccess("Tournament deleted.");
     } catch (err) {
       setLoadError(err.message || "Failed to delete tournament.");
+    } finally {
+      setDeletingTournament(false);
     }
   };
 
@@ -606,6 +611,7 @@ export default function Page() {
               variant="outline"
               onClick={() => loadTournament(selectedTournamentId)}
               disabled={!selectedTournamentId}
+              loading={loadingSelectedTournament}
               className="w-full sm:w-auto"
             >
               Load
@@ -629,6 +635,8 @@ export default function Page() {
             loadingTournaments={loadingTournaments}
             loadingSelectedTournament={loadingSelectedTournament}
             savingTournament={savingTournament}
+            creatingTournament={creatingTournament}
+            deletingTournament={deletingTournament}
             loadError={loadError}
             loadSuccess={loadSuccess}
             onRefreshTournaments={refreshTournaments}
@@ -767,6 +775,7 @@ export default function Page() {
               scores={scores}
               upsertScore={upsertScore}
               playerSlots={tournamentType === "singles" ? 1 : 2}
+              tournamentType={tournamentType}
               readOnly={
                 currentUser?.role !== "admin" &&
                 currentUser?.access !== "write" &&
@@ -776,7 +785,12 @@ export default function Page() {
           </div>
         )}
 
-        {tab === "standings" && <StandingsSection standings={standings} />}
+        {tab === "standings" && (
+          <StandingsSection
+            standings={standings}
+            showOwner={tournamentType === "team"}
+          />
+        )}
 
         {tab === "reports" && (
           <ReportsSection
@@ -791,14 +805,21 @@ export default function Page() {
       <div className="fixed bottom-0 left-0 right-0 z-20 bg-slate-50/95 px-3 sm:px-4 py-3 border-t border-slate-200">
         <div className="max-w-6xl mx-auto w-full grid gap-2">
           <div className="grid grid-cols-1 items-center gap-2 mb-2">
-            <button
-              type="button"
-              onClick={updateTournament}
-              disabled={!canSave || savingTournament}
-              className="w-full rounded-2xl bg-slate-900 px-8 py-3 text-base font-semibold text-white shadow-sm hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {savingTournament ? "Saving..." : "Save"}
-            </button>
+          <button
+            type="button"
+            onClick={updateTournament}
+            disabled={!canSave || savingTournament}
+            className="w-full rounded-2xl bg-slate-900 px-8 py-3 text-base font-semibold text-white shadow-sm hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {savingTournament ? (
+              <span className="flex items-center justify-center gap-2">
+                <span className="inline-flex h-4 w-4 animate-spin rounded-full border-2 border-white/80 border-t-transparent" />
+                Saving...
+              </span>
+            ) : (
+              "Save"
+            )}
+          </button>
           </div>
           <div className="grid grid-cols-2 items-center gap-2">
             <button

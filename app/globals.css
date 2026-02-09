@@ -25,6 +25,7 @@ body {
     radial-gradient(1200px circle at 12% 6%, #e0f2fe 0%, transparent 45%),
     radial-gradient(900px circle at 88% 2%, #f1f5f9 0%, transparent 38%),
     linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+  overflow-x: hidden;
 }
 
 .card {
