@@ -688,7 +688,7 @@ export default function Page() {
                 : t === "profiles"
                 ? "Profiles"
                 : t === "matches"
-                ? "Scores"
+                ? "Matches"
                 : t === "standings"
                 ? "Standing"
                 : "Reports"}

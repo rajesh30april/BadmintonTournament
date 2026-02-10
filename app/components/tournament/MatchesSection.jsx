@@ -251,7 +251,7 @@ export default function MatchesSection({
         <CardContent className="p-0">
           <div className="p-4 flex items-center justify-between">
             <div>
-              <div className="text-xl font-extrabold">Scores</div>
+              <div className="text-xl font-extrabold">Matches</div>
               <div className="text-sm text-slate-500">Round-robin fixtures</div>
             </div>
           </div>
