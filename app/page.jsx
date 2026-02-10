@@ -9,14 +9,13 @@ import {
   slug,
 } from "./lib/tournament";
 import SetupSection from "./components/tournament/SetupSection";
-import TeamsSection from "./components/tournament/TeamsSection";
 import MatchesSection from "./components/tournament/MatchesSection";
 import StandingsSection from "./components/tournament/StandingsSection";
 import HeaderBar from "./components/tournament/HeaderBar";
 import ReportsSection from "./components/tournament/ReportsSection";
 import ProfilesSection from "./components/tournament/ProfilesSection";
 import TopBanner from "./components/tournament/TopBanner";
-import { Button, Card, CardContent, Select } from "./components/ui";
+import { Button, Select } from "./components/ui";
 
 export default function Page() {
   const [tab, setTab] = useState("setup");
@@ -193,6 +192,24 @@ export default function Page() {
     setNewTeamName("");
   };
 
+  const addManualFixture = () => {
+    if (!newFixtureT1 || !newFixtureT2) return;
+    if (newFixtureT1 === newFixtureT2) return;
+    const samePairCount = manualFixtures.filter(
+      (f) =>
+        (f.t1 === newFixtureT1 && f.t2 === newFixtureT2) ||
+        (f.t1 === newFixtureT2 && f.t2 === newFixtureT1)
+    ).length;
+    const suffix = samePairCount + 1;
+    const key =
+      suffix === 1
+        ? `${newFixtureT1} vs ${newFixtureT2}`
+        : `${newFixtureT1} vs ${newFixtureT2} (${suffix})`;
+    setManualFixtures((prev) => [...prev, { key, t1: newFixtureT1, t2: newFixtureT2 }]);
+    setNewFixtureT1("");
+    setNewFixtureT2("");
+  };
+
   const updateOwner = (teamName, owner) => {
     setTeams((p) => p.map((t) => (t.name !== teamName ? t : { ...t, owner })));
   };
@@ -228,6 +245,7 @@ export default function Page() {
   const handleTypeChange = (next) => {
     if (next === tournamentType) return;
     setTournamentType(next);
+    setSetupTab(next === "team" ? "categories" : "teams");
     setSelectedMatch(null);
     setScores({});
     setManualFixtures([]);
@@ -701,27 +719,37 @@ export default function Page() {
         <TopBanner
           title="Badminton Tournament"
           titleSlot={
-            <div className="relative w-full">
-              <Select
-                className="pr-9 w-full"
-                value={selectedTournamentId}
-                onChange={(e) => {
-                  const id = e.target.value;
-                  setSelectedTournamentId(id);
-                  if (id) loadTournament(id);
-                }}
-                disabled={loadingSelectedTournament || loadingTournaments}
+            <div className="grid w-full gap-2 grid-cols-[3fr_1fr] items-center">
+              <div className="relative w-full">
+                <Select
+                  className="pr-9 w-full"
+                  value={selectedTournamentId}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    setSelectedTournamentId(id);
+                    if (id) loadTournament(id);
+                  }}
+                  disabled={loadingSelectedTournament || loadingTournaments}
+                >
+                  <option value="">Select tournament</option>
+                  {tournaments.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name || t.id}
+                    </option>
+                  ))}
+                </Select>
+                {loadingSelectedTournament ? (
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 inline-flex h-4 w-4 animate-spin rounded-full border-2 border-slate-400 border-t-transparent" />
+                ) : null}
+              </div>
+              <Button
+                onClick={updateTournament}
+                disabled={!canSave}
+                loading={savingTournament}
+                className="w-full"
               >
-                <option value="">Select tournament</option>
-                {tournaments.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name || t.id}
-                  </option>
-                ))}
-              </Select>
-              {loadingSelectedTournament ? (
-                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 inline-flex h-4 w-4 animate-spin rounded-full border-2 border-slate-400 border-t-transparent" />
-              ) : null}
+                Save
+              </Button>
             </div>
           }
         />
@@ -761,6 +789,21 @@ export default function Page() {
             matchTypeConfig={matchTypeConfig}
             setMatchTypeConfig={setMatchTypeConfig}
             teams={teams}
+            updateOwner={updateOwner}
+            updatePlayerName={updatePlayerName}
+            tournamentType={tournamentType}
+            newTeamName={newTeamName}
+            setNewTeamName={setNewTeamName}
+            addTeam={addTeam}
+            totalPlayers={totalPlayers}
+            categories={categories}
+            profiles={profiles}
+            manualFixtures={manualFixtures}
+            newFixtureT1={newFixtureT1}
+            setNewFixtureT1={setNewFixtureT1}
+            newFixtureT2={newFixtureT2}
+            setNewFixtureT2={setNewFixtureT2}
+            onAddManualFixture={addManualFixture}
             addCategory={addCategory}
             updateCategoryCount={updateCategoryCount}
             removeCategory={removeCategory}
@@ -782,93 +825,8 @@ export default function Page() {
             />
         )}
 
-        {tab === "setup" && setupTab === "teams" && (
-          <TeamsSection
-            teams={teams}
-            categoryKeysSorted={categoryKeysSorted}
-            updateOwner={updateOwner}
-            updatePlayerName={updatePlayerName}
-            tournamentType={tournamentType}
-            newTeamName={newTeamName}
-            setNewTeamName={setNewTeamName}
-            addTeam={addTeam}
-            totalPlayers={totalPlayers}
-            categories={categories}
-            profiles={profiles}
-            readOnly={
-              currentUser?.role !== "admin" && currentUser?.access !== "write"
-            }
-          />
-        )}
-
         {tab === "matches" && (
           <div className="grid gap-3">
-            {!isTeamType ? (
-              <Card>
-                <CardContent className="grid gap-3">
-                  <div className="text-sm font-bold text-slate-700">
-                    Add Match (history allowed)
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Select
-                      value={newFixtureT1}
-                      onChange={(e) => setNewFixtureT1(e.target.value)}
-                      disabled={!canEditStructure}
-                    >
-                      <option value="">Team A</option>
-                      {teams.map((t) => (
-                        <option key={t.name} value={t.name}>
-                          {t.name}
-                        </option>
-                      ))}
-                    </Select>
-                    <Select
-                      value={newFixtureT2}
-                      onChange={(e) => setNewFixtureT2(e.target.value)}
-                      disabled={!canEditStructure}
-                    >
-                      <option value="">Team B</option>
-                      {teams.map((t) => (
-                        <option key={t.name} value={t.name}>
-                          {t.name}
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
-                  <Button
-                    onClick={() => {
-                      if (!newFixtureT1 || !newFixtureT2) return;
-                      if (newFixtureT1 === newFixtureT2) return;
-                      const samePairCount = manualFixtures.filter(
-                        (f) =>
-                          (f.t1 === newFixtureT1 && f.t2 === newFixtureT2) ||
-                          (f.t1 === newFixtureT2 && f.t2 === newFixtureT1)
-                      ).length;
-                      const suffix = samePairCount + 1;
-                      const key =
-                        suffix === 1
-                          ? `${newFixtureT1} vs ${newFixtureT2}`
-                          : `${newFixtureT1} vs ${newFixtureT2} (${suffix})`;
-                      setManualFixtures((prev) => [
-                        ...prev,
-                        { key, t1: newFixtureT1, t2: newFixtureT2 },
-                      ]);
-                      setNewFixtureT1("");
-                      setNewFixtureT2("");
-                    }}
-                    disabled={
-                      !canEditStructure ||
-                      !newFixtureT1 ||
-                      !newFixtureT2 ||
-                      newFixtureT1 === newFixtureT2
-                    }
-                  >
-                    + Add Match
-                  </Button>
-                </CardContent>
-              </Card>
-            ) : null}
-
             <MatchesSection
               fixtures={fixtures}
               selectedMatch={selectedMatch}
@@ -918,23 +876,6 @@ export default function Page() {
 
       <div className="fixed bottom-0 left-0 right-0 z-20 bg-slate-50/95 px-3 sm:px-4 py-3 border-t border-slate-200">
         <div className="max-w-6xl mx-auto w-full grid gap-2">
-          <div className="grid grid-cols-1 items-center gap-2 mb-2">
-          <button
-            type="button"
-            onClick={updateTournament}
-            disabled={!canSave || savingTournament}
-            className="w-full rounded-2xl bg-slate-900 px-8 py-3 text-base font-semibold text-white shadow-sm hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {savingTournament ? (
-              <span className="flex items-center justify-center gap-2">
-                <span className="inline-flex h-4 w-4 animate-spin rounded-full border-2 border-white/80 border-t-transparent" />
-                Saving...
-              </span>
-            ) : (
-              "Save"
-            )}
-          </button>
-          </div>
           <div className="grid grid-cols-2 items-center gap-2">
             <button
               type="button"

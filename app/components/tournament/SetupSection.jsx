@@ -1,4 +1,5 @@
 import { Button, Card, CardContent, Input, Select } from "../ui";
+import TeamsSection from "./TeamsSection";
 
 export default function SetupSection({
   tournamentName,
@@ -35,6 +36,19 @@ export default function SetupSection({
   matchTypeConfig,
   setMatchTypeConfig,
   teams,
+  updateOwner,
+  updatePlayerName,
+  newTeamName,
+  setNewTeamName,
+  addTeam,
+  totalPlayers,
+  profiles,
+  manualFixtures,
+  newFixtureT1,
+  setNewFixtureT1,
+  newFixtureT2,
+  setNewFixtureT2,
+  onAddManualFixture,
   addCategory,
   updateCategoryCount,
   removeCategory,
@@ -49,7 +63,8 @@ export default function SetupSection({
         { key: "teams", label: "Teams" },
       ]
     : [
-        { key: "teams", label: tournamentType === "singles" ? "Players" : "Pairs" },
+        { key: "teams", label: tournamentType === "singles" ? "Players" : "Teams" },
+        { key: "matches", label: "Matches" },
       ];
 
   return (
@@ -163,6 +178,85 @@ export default function SetupSection({
             </div>
           ) : null}
         </div>
+
+        {!isTeamType && (!selectedTournamentId || configTab === "matches") ? (
+          <details className="rounded-2xl border border-slate-200 bg-white p-4" open>
+            <summary className="cursor-pointer text-sm font-extrabold text-slate-900">
+              Matches (History)
+            </summary>
+            <div className="mt-3 grid gap-3">
+              <div className="text-xs text-slate-500">
+                Add matches for doubles/singles history. Scores are entered in Matches tab.
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Select
+                  value={newFixtureT1}
+                  onChange={(e) => setNewFixtureT1(e.target.value)}
+                  disabled={readOnly}
+                >
+                  <option value="">Team A</option>
+                  {teams.map((t) => (
+                    <option key={t.name} value={t.name}>
+                      {t.name}
+                    </option>
+                  ))}
+                </Select>
+                <Select
+                  value={newFixtureT2}
+                  onChange={(e) => setNewFixtureT2(e.target.value)}
+                  disabled={readOnly}
+                >
+                  <option value="">Team B</option>
+                  {teams.map((t) => (
+                    <option key={t.name} value={t.name}>
+                      {t.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <Button
+                onClick={onAddManualFixture}
+                disabled={
+                  readOnly ||
+                  !newFixtureT1 ||
+                  !newFixtureT2 ||
+                  newFixtureT1 === newFixtureT2
+                }
+              >
+                + Add Match
+              </Button>
+              {manualFixtures?.length ? (
+                <div className="grid gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                  {manualFixtures.map((fx) => (
+                    <div key={fx.key}>{fx.key}</div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-xs text-slate-500">
+                  No matches added yet.
+                </div>
+              )}
+            </div>
+          </details>
+        ) : null}
+
+        {(!selectedTournamentId || configTab === "teams") && (
+          <TeamsSection
+            teams={teams}
+            categoryKeysSorted={categoryKeysSorted}
+            updateOwner={updateOwner}
+            updatePlayerName={updatePlayerName}
+            tournamentType={tournamentType}
+            newTeamName={newTeamName}
+            setNewTeamName={setNewTeamName}
+            addTeam={addTeam}
+            totalPlayers={totalPlayers}
+            categories={categories}
+            profiles={profiles}
+            readOnly={readOnly}
+            showTitle={false}
+          />
+        )}
 
         {isTeamType && (!selectedTournamentId || configTab === "categories") && (
         <details className="rounded-2xl border border-slate-200 bg-white p-4" open>

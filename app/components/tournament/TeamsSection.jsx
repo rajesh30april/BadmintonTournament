@@ -13,10 +13,11 @@ export default function TeamsSection({
   categories = [],
   profiles = [],
   readOnly = false,
+  showTitle = true,
 }) {
   const showCategories = categoryKeysSorted.length > 0;
-  const playersLabel =
-    tournamentType === "singles" ? "Players" : tournamentType === "doubles" ? "Pairs" : "Players";
+  const playersLabel = tournamentType === "singles" ? "Players" : "Teams";
+  const addLabel = tournamentType === "singles" ? "Add Player" : "Add Team";
   const ownerOptions = profiles.filter(
     (p) => p.role === "owner" || p.role === "both"
   );
@@ -25,23 +26,19 @@ export default function TeamsSection({
   );
   return (
     <div className="grid gap-3">
-      <div>
-        <div className="text-xl font-extrabold">
-          {tournamentType === "team" ? "Teams" : playersLabel}
+      {showTitle ? (
+        <div>
+          <div className="text-xl font-extrabold">
+            {tournamentType === "team" ? "Teams" : playersLabel}
+          </div>
+          <div className="text-xs text-slate-500">
+            {teams.length} teams • {totalPlayers} players
+          </div>
         </div>
-        <div className="text-xs text-slate-500">
-          {teams.length} teams • {totalPlayers} players
-        </div>
-      </div>
+      ) : null}
 
       <div className="rounded-2xl border border-slate-200 bg-white p-4">
-        <div className="text-sm font-extrabold mb-2">
-          {tournamentType === "team"
-            ? "Add Team"
-            : tournamentType === "singles"
-            ? "Add Player"
-            : "Add Pair"}
-        </div>
+        <div className="text-sm font-extrabold mb-2">{addLabel}</div>
         <div className="flex gap-2">
           <Input
             placeholder={
