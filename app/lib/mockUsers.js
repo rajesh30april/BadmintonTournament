@@ -7,6 +7,7 @@ const seedUsers = () => [
     password: "admin",
     role: "admin",
     access: "write",
+    lastLoginAt: null,
     createdAt: now(),
     updatedAt: now(),
   },
@@ -33,6 +34,9 @@ export function verifyUser(username, password) {
   const user = findUser(username);
   if (!user) return null;
   if (user.password !== password) return null;
+  user.lastLoginAt = now();
+  user.updatedAt = now();
+  setStore(users);
   return user;
 }
 
@@ -45,6 +49,7 @@ export function createUser(username, password) {
     password,
     role: "user",
     access: "read",
+    lastLoginAt: now(),
     createdAt: now(),
     updatedAt: now(),
   };

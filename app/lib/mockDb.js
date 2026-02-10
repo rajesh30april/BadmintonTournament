@@ -64,6 +64,9 @@ let globalProfiles = [
   { id: "p-006", name: "Meera", role: "owner", phone: "9000000006" },
 ];
 
+let comments = [];
+let matchLikes = [];
+
 export function listTournaments() {
   return tournaments;
 }
@@ -126,4 +129,71 @@ export function deleteTournament(id) {
   const before = tournaments.length;
   tournaments = tournaments.filter((t) => t.id !== id);
   return tournaments.length !== before;
+}
+
+export function listComments(tournamentId) {
+  if (!tournamentId) return [];
+  return comments
+    .filter((c) => c.tournamentId === tournamentId)
+    .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+}
+
+export function addComment(tournamentId, fixtureKey, rowId, text, author) {
+  if (!tournamentId || !fixtureKey || !rowId || !text) return null;
+  const comment = {
+    id: `c-${Math.random().toString(36).slice(2, 8)}`,
+    tournamentId,
+    fixtureKey,
+    rowId: String(rowId),
+    text: text.trim(),
+    author: author || "unknown",
+    likes: 0,
+    createdAt: now(),
+  };
+  comments = [...comments, comment];
+  return comment;
+}
+
+export function likeComment(commentId) {
+  if (!commentId) return null;
+  const idx = comments.findIndex((c) => c.id === commentId);
+  if (idx === -1) return null;
+  const updated = { ...comments[idx], likes: (comments[idx].likes || 0) + 1 };
+  comments = [...comments.slice(0, idx), updated, ...comments.slice(idx + 1)];
+  return updated;
+}
+
+export function listMatchLikes(tournamentId) {
+  if (!tournamentId) return [];
+  return matchLikes.filter((m) => m.tournamentId === tournamentId);
+}
+
+export function likeMatch(tournamentId, fixtureKey, rowId) {
+  if (!tournamentId || !fixtureKey || !rowId) return null;
+  const idx = matchLikes.findIndex(
+    (m) =>
+      m.tournamentId === tournamentId &&
+      m.fixtureKey === fixtureKey &&
+      String(m.rowId) === String(rowId)
+  );
+  if (idx === -1) {
+    const created = {
+      id: `ml-${Math.random().toString(36).slice(2, 8)}`,
+      tournamentId,
+      fixtureKey,
+      rowId: String(rowId),
+      likes: 1,
+      createdAt: now(),
+      updatedAt: now(),
+    };
+    matchLikes = [...matchLikes, created];
+    return created;
+  }
+  const updated = {
+    ...matchLikes[idx],
+    likes: (matchLikes[idx].likes || 0) + 1,
+    updatedAt: now(),
+  };
+  matchLikes = [...matchLikes.slice(0, idx), updated, ...matchLikes.slice(idx + 1)];
+  return updated;
 }

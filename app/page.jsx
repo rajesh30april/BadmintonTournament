@@ -53,6 +53,8 @@ export default function Page() {
   const [newFixtureT1, setNewFixtureT1] = useState("");
   const [newFixtureT2, setNewFixtureT2] = useState("");
   const [profiles, setProfiles] = useState([]);
+  const [comments, setComments] = useState([]);
+  const [matchLikes, setMatchLikes] = useState([]);
 
   const isTeamType = tournamentType === "team";
 
@@ -99,6 +101,17 @@ export default function Page() {
       .then((json) => setProfiles(Array.isArray(json.data) ? json.data : []))
       .catch(() => setProfiles([]));
   }, []);
+
+  useEffect(() => {
+    if (!selectedTournamentId) {
+      setComments([]);
+      return;
+    }
+    fetch(`/api/comments?tournamentId=${selectedTournamentId}`, { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : Promise.reject()))
+      .then((json) => setComments(Array.isArray(json.data) ? json.data : []))
+      .catch(() => setComments([]));
+  }, [selectedTournamentId]);
 
   useEffect(() => {
     setSetupTab(tournamentType === "team" ? "categories" : "teams");
@@ -303,6 +316,16 @@ export default function Page() {
       setManualFixtures(Array.isArray(record.fixtures) ? record.fixtures : []);
       setSelectedMatch(null);
       setTab("setup");
+      setComments([]);
+      setMatchLikes([]);
+      fetch(`/api/comments?tournamentId=${id}`, { cache: "no-store" })
+        .then((res) => (res.ok ? res.json() : Promise.reject()))
+        .then((json) => setComments(Array.isArray(json.data) ? json.data : []))
+        .catch(() => setComments([]));
+      fetch(`/api/match-likes?tournamentId=${id}`, { cache: "no-store" })
+        .then((res) => (res.ok ? res.json() : Promise.reject()))
+        .then((json) => setMatchLikes(Array.isArray(json.data) ? json.data : []))
+        .catch(() => setMatchLikes([]));
       setLoadSuccess("Tournament loaded.");
     } catch (err) {
       setLoadError("Failed to load selected tournament.");
@@ -315,6 +338,11 @@ export default function Page() {
     tournaments.find((t) => t.id === selectedTournamentId) || null;
   const isScorer =
     currentUser?.role !== "admin" && currentUser?.access === "score";
+  const canComment =
+    currentUser?.role === "admin" ||
+    currentUser?.access === "write" ||
+    currentUser?.access === "score" ||
+    currentUser?.access === "comment";
   const canUpdate =
     Boolean(selectedTournamentId) &&
     (currentUser?.role === "admin" ||
@@ -519,6 +547,85 @@ export default function Page() {
     }
   };
 
+  const addMatchComment = async ({ fixtureKey, rowId, text }) => {
+    if (!selectedTournamentId || !text) return;
+    try {
+      const res = await fetch("/api/comments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tournamentId: selectedTournamentId,
+          fixtureKey,
+          rowId,
+          text,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json.error || "Failed to add comment.");
+      }
+      if (json?.data) {
+        setComments((prev) => [...prev, json.data]);
+      }
+    } catch (err) {
+      setLoadError(err.message || "Failed to add comment.");
+    }
+  };
+
+  const likeMatchComment = async (commentId) => {
+    if (!commentId) return;
+    try {
+      const res = await fetch("/api/comments/like", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ commentId }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json.error || "Failed to like comment.");
+      }
+      if (json?.data) {
+        setComments((prev) =>
+          prev.map((c) => (c.id === json.data.id ? json.data : c))
+        );
+      }
+    } catch (err) {
+      setLoadError(err.message || "Failed to like comment.");
+    }
+  };
+
+  const likeMatchRow = async ({ fixtureKey, rowId }) => {
+    if (!selectedTournamentId || !fixtureKey || !rowId) return;
+    try {
+      const res = await fetch("/api/match-likes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tournamentId: selectedTournamentId,
+          fixtureKey,
+          rowId,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json.error || "Failed to like match.");
+      }
+      if (json?.data) {
+        setMatchLikes((prev) => {
+          const idx = prev.findIndex((m) => m.id === json.data.id);
+          if (idx === -1) return [...prev, json.data];
+          return [
+            ...prev.slice(0, idx),
+            json.data,
+            ...prev.slice(idx + 1),
+          ];
+        });
+      }
+    } catch (err) {
+      setLoadError(err.message || "Failed to like match.");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50">
       <HeaderBar
@@ -594,28 +701,28 @@ export default function Page() {
         <TopBanner
           title="Badminton Tournament"
           titleSlot={
-            <Select
-              value={selectedTournamentId}
-              onChange={(e) => setSelectedTournamentId(e.target.value)}
-            >
-              <option value="">Select tournament</option>
-              {tournaments.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name || t.id}
-                </option>
-              ))}
-            </Select>
-          }
-          rightSlot={
-            <Button
-              variant="outline"
-              onClick={() => loadTournament(selectedTournamentId)}
-              disabled={!selectedTournamentId}
-              loading={loadingSelectedTournament}
-              className="w-full sm:w-auto"
-            >
-              Load
-            </Button>
+            <div className="relative w-full">
+              <Select
+                className="pr-9 w-full"
+                value={selectedTournamentId}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  setSelectedTournamentId(id);
+                  if (id) loadTournament(id);
+                }}
+                disabled={loadingSelectedTournament || loadingTournaments}
+              >
+                <option value="">Select tournament</option>
+                {tournaments.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name || t.id}
+                  </option>
+                ))}
+              </Select>
+              {loadingSelectedTournament ? (
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 inline-flex h-4 w-4 animate-spin rounded-full border-2 border-slate-400 border-t-transparent" />
+              ) : null}
+            </div>
           }
         />
         {tab === "setup" && (
@@ -776,6 +883,13 @@ export default function Page() {
               upsertScore={upsertScore}
               playerSlots={tournamentType === "singles" ? 1 : 2}
               tournamentType={tournamentType}
+              comments={comments}
+              matchLikes={matchLikes}
+              onAddComment={addMatchComment}
+              onLikeComment={likeMatchComment}
+              onLikeMatch={likeMatchRow}
+              canComment={canComment}
+              currentUser={currentUser}
               readOnly={
                 currentUser?.role !== "admin" &&
                 currentUser?.access !== "write" &&

@@ -3,7 +3,9 @@ import {
   deleteTournament as deleteMock,
   getTournament as getMock,
   getProfiles as getProfilesMock,
+  listComments as listCommentsMock,
   listTournaments as listMock,
+  addComment as addCommentMock,
   updateTournament as updateMock,
   updateProfiles as updateProfilesMock,
 } from "./mockDb";
@@ -27,7 +29,7 @@ export function isDuplicateNameError(error) {
 
 const getPrisma = async () => {
   const mod = await import("./db");
-  return mod.prisma;
+  return mod.ensurePrisma ? mod.ensurePrisma() : mod.prisma;
 };
 
 export async function listTournaments() {
@@ -129,6 +131,73 @@ export async function replaceProfiles(profiles) {
     }
   });
   return getProfiles();
+}
+
+export async function listComments(tournamentId) {
+  if (!tournamentId) return [];
+  if (useMock()) return listCommentsMock(tournamentId);
+  const prisma = await getPrisma();
+  return prisma.comment.findMany({
+    where: { tournamentId },
+    orderBy: { createdAt: "asc" },
+  });
+}
+
+export async function addComment({ tournamentId, fixtureKey, rowId, text, author }) {
+  if (!tournamentId || !fixtureKey || !rowId || !text) return null;
+  if (useMock()) return addCommentMock(tournamentId, fixtureKey, rowId, text, author);
+  const prisma = await getPrisma();
+  return prisma.comment.create({
+    data: {
+      tournamentId,
+      fixtureKey,
+      rowId: String(rowId),
+      text: String(text).trim(),
+      author: author || "unknown",
+    },
+  });
+}
+
+export async function likeComment({ commentId }) {
+  if (!commentId) return null;
+  if (useMock()) return likeCommentMock(commentId);
+  const prisma = await getPrisma();
+  return prisma.comment.update({
+    where: { id: commentId },
+    data: { likes: { increment: 1 } },
+  });
+}
+
+export async function listMatchLikes(tournamentId) {
+  if (!tournamentId) return [];
+  if (useMock()) return listMatchLikesMock(tournamentId);
+  const prisma = await getPrisma();
+  return prisma.matchLike.findMany({
+    where: { tournamentId },
+    orderBy: { updatedAt: "desc" },
+  });
+}
+
+export async function likeMatch({ tournamentId, fixtureKey, rowId }) {
+  if (!tournamentId || !fixtureKey || !rowId) return null;
+  if (useMock()) return likeMatchMock(tournamentId, fixtureKey, rowId);
+  const prisma = await getPrisma();
+  return prisma.matchLike.upsert({
+    where: {
+      tournamentId_fixtureKey_rowId: {
+        tournamentId,
+        fixtureKey,
+        rowId: String(rowId),
+      },
+    },
+    update: { likes: { increment: 1 } },
+    create: {
+      tournamentId,
+      fixtureKey,
+      rowId: String(rowId),
+      likes: 1,
+    },
+  });
 }
 
 export async function createTournament(payload) {

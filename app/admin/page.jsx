@@ -64,7 +64,7 @@ export default function AdminPage() {
               Admin Access
             </h1>
             <p className={`${sora.className} text-sm text-slate-500`}>
-              Set read/write/score access for users. Admin always has write access.
+              Set read/write/score/comment access for users. Admin always has write access.
             </p>
           </div>
           <button
@@ -79,10 +79,11 @@ export default function AdminPage() {
         {error && <div className={`${sora.className} text-sm text-rose-600`}>{error}</div>}
 
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className={`${sora.className} grid grid-cols-3 gap-2 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase text-slate-500`}>
+          <div className={`${sora.className} grid grid-cols-4 gap-2 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase text-slate-500`}>
             <div>User</div>
             <div>Role</div>
             <div>Access</div>
+            <div>Last Login</div>
           </div>
           {loading ? (
             <div className={`${sora.className} px-4 py-6 text-sm text-slate-500`}>
@@ -96,7 +97,7 @@ export default function AdminPage() {
             users.map((user) => (
               <div
                 key={user.id}
-                className={`${sora.className} grid grid-cols-3 gap-2 border-t px-4 py-3 text-sm text-slate-700`}
+                className={`${sora.className} grid grid-cols-4 gap-2 border-t px-4 py-3 text-sm text-slate-700`}
               >
                 <div>{user.username}</div>
                 <div className="capitalize">{user.role}</div>
@@ -111,9 +112,15 @@ export default function AdminPage() {
                     >
                       <option value="read">read</option>
                       <option value="score">score</option>
+                      <option value="comment">comment</option>
                       <option value="write">write</option>
                     </select>
                   )}
+                </div>
+                <div className="text-xs text-slate-500">
+                  {user.lastLoginAt
+                    ? new Date(user.lastLoginAt).toLocaleString()
+                    : "Never"}
                 </div>
               </div>
             ))

@@ -36,6 +36,7 @@ export async function POST(request) {
             passwordHash: hashPassword(password),
             role: "admin",
             access: "write",
+            lastLoginAt: new Date(),
           },
         });
         user = created;
@@ -46,6 +47,7 @@ export async function POST(request) {
             passwordHash: hashPassword(password),
             role: "user",
             access: "read",
+            lastLoginAt: new Date(),
           },
         });
         user = created;
@@ -55,7 +57,10 @@ export async function POST(request) {
       if (!ok) {
         return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
       }
-      user = existing;
+      user = await prisma.userAccount.update({
+        where: { username },
+        data: { lastLoginAt: new Date() },
+      });
     }
   }
 

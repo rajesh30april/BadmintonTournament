@@ -12,7 +12,15 @@ export async function GET(request) {
     return NextResponse.json({ users: listUsers() });
   }
   const users = await prisma.userAccount.findMany({
-    select: { id: true, username: true, role: true, access: true, createdAt: true, updatedAt: true },
+    select: {
+      id: true,
+      username: true,
+      role: true,
+      access: true,
+      createdAt: true,
+      updatedAt: true,
+      lastLoginAt: true,
+    },
     orderBy: { createdAt: "desc" },
   });
   return NextResponse.json({ users });
@@ -26,7 +34,7 @@ export async function PUT(request) {
   const payload = await request.json().catch(() => ({}));
   const username = String(payload?.username || "").trim();
   const access = String(payload?.access || "").trim();
-  if (!username || !["read", "write", "score"].includes(access)) {
+  if (!username || !["read", "write", "score", "comment"].includes(access)) {
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
   }
   if (process.env.USE_MOCK_DB === "true") {
