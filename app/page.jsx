@@ -18,7 +18,7 @@ import TopBanner from "./components/tournament/TopBanner";
 import { Button, Select } from "./components/ui";
 
 export default function Page() {
-  const [tab, setTab] = useState("setup");
+  const [tab, setTab] = useState("standings");
   const [menuOpen, setMenuOpen] = useState(false);
   const [tournamentName, setTournamentName] = useState("");
   const [tournamentType, setTournamentType] = useState("team");
@@ -369,7 +369,7 @@ export default function Page() {
   const canSave = canUpdate && (!isScorer || tab === "matches");
   const canEditStructure =
     currentUser?.role === "admin" || currentUser?.access === "write";
-  const tabs = ["setup", "profiles", "matches", "standings", "reports"];
+  const tabs = ["standings", "reports", "matches", "setup", "profiles"];
   const tabIndex = Math.max(0, tabs.indexOf(tab));
   const canGoBack = tabIndex > 0;
   const canGoNext = tabIndex < tabs.length - 1;
@@ -702,9 +702,9 @@ export default function Page() {
               }`}
             >
               {t === "setup"
-                ? "Setup"
+                ? "Configuration"
                 : t === "profiles"
-                ? "Profiles"
+                ? "Players"
                 : t === "matches"
                 ? "Matches"
                 : t === "standings"
