@@ -147,7 +147,7 @@ export default function SetupSection({
         </details>
 
         <div>
-          <div className="text-xl font-extrabold">Setup</div>
+          <div className="text-xl font-extrabold">Configuration</div>
           <div className="text-sm text-slate-500">
             {isTeamType
               ? "Configure categories and create teams"

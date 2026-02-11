@@ -333,7 +333,7 @@ export default function Page() {
       setScores(record.scores || {});
       setManualFixtures(Array.isArray(record.fixtures) ? record.fixtures : []);
       setSelectedMatch(null);
-      setTab("setup");
+      setTab("standings");
       setComments([]);
       setMatchLikes([]);
       fetch(`/api/comments?tournamentId=${id}`, { cache: "no-store" })

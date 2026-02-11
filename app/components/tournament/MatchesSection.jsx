@@ -266,7 +266,7 @@ export default function MatchesSection({
 
           {safeFixtures.length === 0 ? (
             <div className="px-4 pb-4 text-sm text-slate-600">
-              Add at least 2 teams in Setup.
+              Add at least 2 teams in Configuration.
             </div>
           ) : filteredPairs.length === 0 ? (
             <div className="px-4 pb-4 text-sm text-slate-600">
@@ -346,9 +346,9 @@ export default function MatchesSection({
                       )}
                     </div>
                     {safeMatchRows.length === 0 ? (
-                      <div className="text-sm text-slate-600">
-                        No match rows configured. Set counts in Setup.
-                      </div>
+                          <div className="text-sm text-slate-600">
+                            No match rows configured. Set counts in Configuration.
+                          </div>
                     ) : visibleRows.length === 0 ? (
                       <div className="text-sm text-slate-600">
                         No matches found for "{query}".

@@ -79,7 +79,7 @@ export default function ScoreSection({
                 <div className="grid gap-3">
                   {matchRows.length === 0 ? (
                     <div className="text-sm text-slate-600">
-                      No match rows configured. Set counts in Setup.
+                      No match rows configured. Set counts in Configuration.
                     </div>
                   ) : null}
                   {matchRows.map((row) => {

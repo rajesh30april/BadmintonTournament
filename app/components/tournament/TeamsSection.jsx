@@ -61,9 +61,9 @@ export default function TeamsSection({
 
       {teams.length === 0 ? (
         <Card>
-          <CardContent className="text-sm text-slate-600">
-            No teams yet. Go to Setup.
-          </CardContent>
+        <CardContent className="text-sm text-slate-600">
+          No teams yet. Go to Configuration.
+        </CardContent>
         </Card>
       ) : (
         teams.map((t) => (

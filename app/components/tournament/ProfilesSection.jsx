@@ -29,7 +29,7 @@ export default function ProfilesSection({
   return (
     <div className="grid gap-3">
       <div>
-        <div className="text-xl font-extrabold">Profiles</div>
+        <div className="text-xl font-extrabold">Players</div>
         <div className="text-xs text-slate-500">
           Add players and owners with phone numbers.
         </div>
@@ -39,7 +39,7 @@ export default function ProfilesSection({
         <CardContent className="grid gap-2">
           <div className="flex flex-wrap gap-2">
             <Button onClick={addProfile} disabled={readOnly || !hasTournament}>
-              + Add Profile
+              + Add Player
             </Button>
             <Button
               variant="outline"
@@ -47,7 +47,7 @@ export default function ProfilesSection({
               disabled={!canSave || !hasTournament || saving}
               loading={saving}
             >
-              Save Profiles
+              Save Players
             </Button>
           </div>
           {!hasTournament ? (
@@ -56,7 +56,7 @@ export default function ProfilesSection({
             </div>
           ) : null}
           {profiles.length === 0 ? (
-            <div className="text-sm text-slate-600">No profiles yet.</div>
+            <div className="text-sm text-slate-600">No players yet.</div>
           ) : (
             profiles.map((p) => (
               <div
