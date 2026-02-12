@@ -169,19 +169,24 @@ export default function MatchesSection({
   useEffect(() => {
     if (!focusMatch) return;
     if (focusMatch.pairKey && focusMatch.pairKey !== selectedMatch) return;
+    let applied = false;
     if (
       focusMatch.fixtureKey &&
       selectedFixtures.some((fx) => fx.key === focusMatch.fixtureKey)
     ) {
       setSelectedFixtureKey(focusMatch.fixtureKey);
+      applied = true;
     }
     if (
       focusMatch.rowId &&
       safeMatchRows.some((row) => String(row.id) === String(focusMatch.rowId))
     ) {
       setSelectedRowId(String(focusMatch.rowId));
+      applied = true;
     }
-    onFocusApplied();
+    if (applied) {
+      onFocusApplied();
+    }
   }, [
     focusMatch,
     selectedMatch,
