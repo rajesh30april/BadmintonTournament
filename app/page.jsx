@@ -343,6 +343,16 @@ export default function Page() {
     };
   }, [liveMatch, fixtures, matchRows, scores, teams]);
 
+  const standingsLikeCount = useMemo(() => {
+    const entry = matchLikes.find(
+      (m) => m.fixtureKey === "standings" && String(m.rowId) === "common"
+    );
+    return entry?.likes || 0;
+  }, [matchLikes]);
+
+  const likeStandings = () =>
+    likeMatchRow({ fixtureKey: "standings", rowId: "common" });
+
   const refreshTournaments = async () => {
     setLoadingTournaments(true);
     setLoadError("");
@@ -413,6 +423,7 @@ export default function Page() {
     currentUser?.access === "write" ||
     currentUser?.access === "score" ||
     currentUser?.access === "comment";
+  const canLike = Boolean(currentUser?.username);
 
   const startLiveMatch = (fixtureKey, rowId) => {
     if (!fixtureKey || !rowId) return;
@@ -932,6 +943,13 @@ export default function Page() {
             liveMatchView={liveMatchView}
             canStopLive={canUpdate}
             onStopLive={stopLiveMatch}
+            comments={comments}
+            onAddComment={addMatchComment}
+            onLikeComment={likeMatchComment}
+            onLikeStandings={likeStandings}
+            standingsLikeCount={standingsLikeCount}
+            canComment={canComment}
+            canLike={canLike}
           />
         )}
 
