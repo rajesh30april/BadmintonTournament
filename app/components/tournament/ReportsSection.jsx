@@ -1,7 +1,12 @@
 import { useMemo, useState } from "react";
 import { Card, CardContent, Input } from "../ui";
 
-export default function ReportsSection({ fixtures, scores, teams, matchRows = [] }) {
+export default function ReportsSection({
+  fixtures = [],
+  scores = {},
+  teams,
+  matchRows = [],
+}) {
   const [query, setQuery] = useState("");
   const normalizedQuery = query.trim().toLowerCase();
   const teamStats = new Map();
@@ -48,30 +53,59 @@ export default function ReportsSection({ fixtures, scores, teams, matchRows = []
     return playerStats.get(key);
   };
 
-  const addHeadToHead = (t1, t2, winner, categoryKey, typeLabel) => {
-    const key = [t1, t2].sort().join("__");
+  const addHeadToHead = (t1, t2, winner, categoryKey, typeLabel, detail) => {
+    const [teamA, teamB] = [t1, t2].sort();
+    const key = [teamA, teamB].join("__");
     if (!headToHead.has(key)) {
       headToHead.set(key, {
         key,
-        t1,
-        t2,
+        t1: teamA,
+        t2: teamB,
         played: 0,
         t1Wins: 0,
         t2Wins: 0,
         byCategory: {},
+        matches: [],
       });
     }
     const row = headToHead.get(key);
     row.played += 1;
-    if (winner === "t1") row.t1Wins += 1;
-    if (winner === "t2") row.t2Wins += 1;
+    const winnerTeam = winner === "t1" ? t1 : winner === "t2" ? t2 : "";
+    const normalizedWinner =
+      winnerTeam === row.t1 ? "t1" : winnerTeam === row.t2 ? "t2" : "";
+    if (normalizedWinner === "t1") row.t1Wins += 1;
+    if (normalizedWinner === "t2") row.t2Wins += 1;
     const cat = categoryKey || typeLabel || "Other";
     if (!row.byCategory[cat]) {
       row.byCategory[cat] = { played: 0, t1Wins: 0, t2Wins: 0 };
     }
     row.byCategory[cat].played += 1;
-    if (winner === "t1") row.byCategory[cat].t1Wins += 1;
-    if (winner === "t2") row.byCategory[cat].t2Wins += 1;
+    if (normalizedWinner === "t1") row.byCategory[cat].t1Wins += 1;
+    if (normalizedWinner === "t2") row.byCategory[cat].t2Wins += 1;
+    if (detail) {
+      const normalizedDetail = { ...detail };
+      if (detail.t1 !== row.t1) {
+        normalizedDetail.t1 = row.t1;
+        normalizedDetail.t2 = row.t2;
+        normalizedDetail.t1Players = detail.t2Players;
+        normalizedDetail.t2Players = detail.t1Players;
+        normalizedDetail.t1Score = detail.t2Score;
+        normalizedDetail.t2Score = detail.t1Score;
+        normalizedDetail.winner =
+          detail.winner === row.t1
+            ? row.t1
+            : detail.winner === row.t2
+              ? row.t2
+              : "";
+      }
+      normalizedDetail.scoreText = `${normalizedDetail.t1Score}:${normalizedDetail.t2Score}`;
+      normalizedDetail.resultText = normalizedDetail.winner
+        ? `${normalizedDetail.winner} won`
+        : normalizedDetail.t1Score || normalizedDetail.t2Score
+          ? "Draw"
+          : "No result";
+      row.matches.push(normalizedDetail);
+    }
   };
 
   const resolveCategoryFromRow = (row) => {
@@ -130,7 +164,6 @@ export default function ReportsSection({ fixtures, scores, teams, matchRows = []
           team2.wins += 1;
           team1.losses += 1;
         }
-        addHeadToHead(t1, t2, winner, category, meta?.typeLabel);
       }
 
       const team1Roster = teams.find((t) => t.name === t1)?.players || [];
@@ -142,6 +175,11 @@ export default function ReportsSection({ fixtures, scores, teams, matchRows = []
 
       const resolveName = (roster, rank) =>
         roster.find((p) => p.rank === rank)?.name || "";
+      const resolvePlayerLabel = (roster, rank) => {
+        if (!rank) return "";
+        const name = resolveName(roster, rank);
+        return name ? `${rank} - ${name}` : rank;
+      };
 
       const registerPlayer = (teamName, rank, score, won) => {
         if (!rank) return;
@@ -161,6 +199,25 @@ export default function ReportsSection({ fixtures, scores, teams, matchRows = []
       registerPlayer(t1, t1p2, t1Score, winner === "t1");
       registerPlayer(t2, t2p1, t2Score, winner === "t2");
       registerPlayer(t2, t2p2, t2Score, winner === "t2");
+
+      if (winner) {
+        const detail = {
+          id: `${fx.key}:${rowId}`,
+          categoryLabel: meta?.typeLabel || category || "Match",
+          t1,
+          t2,
+          t1Players: [t1p1, t1p2]
+            .filter(Boolean)
+            .map((rank) => resolvePlayerLabel(team1Roster, rank)),
+          t2Players: [t2p1, t2p2]
+            .filter(Boolean)
+            .map((rank) => resolvePlayerLabel(team2Roster, rank)),
+          t1Score,
+          t2Score,
+          winner: winner === "t1" ? t1 : winner === "t2" ? t2 : "",
+        };
+        addHeadToHead(t1, t2, winner, category, meta?.typeLabel, detail);
+      }
     });
   });
 
@@ -271,6 +328,40 @@ export default function ReportsSection({ fixtures, scores, teams, matchRows = []
                             {row.t1} {stats.t1Wins} - {stats.t2Wins} {row.t2} •{" "}
                             {stats.played} played
                           </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                  {row.matches && row.matches.length ? (
+                    <div className="mt-3 grid gap-2">
+                      {row.matches.map((match) => (
+                        <div
+                          key={match.id}
+                          className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="font-semibold">
+                              {match.categoryLabel}
+                            </span>
+                            <span className="font-bold">{match.scoreText}</span>
+                          </div>
+                          <div className="mt-1 grid gap-1 text-[11px] text-slate-600">
+                            <div>
+                              <span className="font-semibold">{row.t1}:</span>{" "}
+                              {match.t1Players?.length
+                                ? match.t1Players.join(", ")
+                                : "—"}
+                            </div>
+                            <div>
+                              <span className="font-semibold">{row.t2}:</span>{" "}
+                              {match.t2Players?.length
+                                ? match.t2Players.join(", ")
+                                : "—"}
+                            </div>
+                          </div>
+                          <div className="mt-1 text-[11px] text-slate-500">
+                            {match.resultText}
+                          </div>
                         </div>
                       ))}
                     </div>
