@@ -395,7 +395,7 @@ export default function Page() {
     setLoadingSelectedTournament(true);
     setLoadError("");
     setLoadSuccess("");
-    const { preserveTab = false } = options;
+    const { preserveTab = false, preserveLiveMatches = false } = options;
     const currentTab = tab;
     try {
       const res = await fetch(`/api/tournaments/${id}`, { cache: "no-store" });
@@ -415,7 +415,9 @@ export default function Page() {
       setScores(record.scores || {});
       setManualFixtures(Array.isArray(record.fixtures) ? record.fixtures : []);
       setSelectedMatch(null);
-      setLiveMatches([]);
+      if (!preserveLiveMatches) {
+        setLiveMatches([]);
+      }
       setMatchFocus(null);
       if (!preserveTab) {
         setTab("standings");
@@ -765,7 +767,10 @@ export default function Page() {
 
   const handleRefresh = async () => {
     if (selectedTournamentId) {
-      await loadTournament(selectedTournamentId, { preserveTab: true });
+      await loadTournament(selectedTournamentId, {
+        preserveTab: true,
+        preserveLiveMatches: true,
+      });
       return;
     }
     await refreshTournaments();
