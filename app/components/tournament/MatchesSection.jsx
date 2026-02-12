@@ -188,6 +188,14 @@ export default function MatchesSection({
     ) {
       setSelectedRowId(String(focusMatch.rowId));
       applied = true;
+    } else if (focusMatch.rowLabel) {
+      const fallback = safeMatchRows.find(
+        (row) => row.label === focusMatch.rowLabel
+      );
+      if (fallback) {
+        setSelectedRowId(String(fallback.id));
+        applied = true;
+      }
     }
     if (applied) {
       onFocusApplied();

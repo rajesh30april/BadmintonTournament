@@ -367,6 +367,7 @@ export default function Page() {
       pairKey,
       fixtureKey: view.fixtureKey,
       rowId: view.rowId,
+      rowLabel: view.rowLabel || "",
     });
     setSelectedMatch(pairKey);
     setTab("matches");
