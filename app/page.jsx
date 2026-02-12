@@ -293,6 +293,56 @@ export default function Page() {
     return Array.from(map.values()).sort((a, b) => b.points - a.points);
   }, [fixtures, scores, teams]);
 
+  const liveMatchView = useMemo(() => {
+    if (!liveMatch) return null;
+    const fixture = fixtures.find((fx) => fx.key === liveMatch.fixtureKey);
+    const row = matchRows.find((r) => String(r.id) === String(liveMatch.rowId));
+    if (!fixture || !row) return null;
+    const score = scores?.[fixture.key]?.[row.id] || {};
+    const team1 = teams.find((t) => t.name === fixture.t1);
+    const team2 = teams.find((t) => t.name === fixture.t2);
+    const playerLabel = (team, rank) => {
+      if (!rank) return "";
+      const name = team?.players?.find((p) => p.rank === rank)?.name;
+      return name ? `${rank} - ${name}` : rank;
+    };
+    const t1Players = [score.t1Player1, score.t1Player2]
+      .filter(Boolean)
+      .map((rank) => playerLabel(team1, rank))
+      .join(", ");
+    const t2Players = [score.t2Player1, score.t2Player2]
+      .filter(Boolean)
+      .map((rank) => playerLabel(team2, rank))
+      .join(", ");
+    const winnerTeam =
+      score.winner === "t1"
+        ? fixture.t1
+        : score.winner === "t2"
+          ? fixture.t2
+          : "";
+    const status = winnerTeam ? `Winner: ${winnerTeam}` : "Live";
+    const hasScore =
+      score.t1 !== "" &&
+      score.t1 !== undefined &&
+      score.t2 !== "" &&
+      score.t2 !== undefined;
+    const scoreText = hasScore
+      ? `${score.t1 ?? 0} : ${score.t2 ?? 0}`
+      : "Score pending";
+    return {
+      fixtureKey: fixture.key,
+      rowId: row.id,
+      rowLabel: row.label || `Match ${row.id}`,
+      teamsLabel: `${fixture.t1} vs ${fixture.t2}`,
+      t1: fixture.t1,
+      t2: fixture.t2,
+      t1Players,
+      t2Players,
+      status,
+      scoreText,
+    };
+  }, [liveMatch, fixtures, matchRows, scores, teams]);
+
   const refreshTournaments = async () => {
     setLoadingTournaments(true);
     setLoadError("");
@@ -879,6 +929,9 @@ export default function Page() {
           <StandingsSection
             standings={standings}
             showOwner={tournamentType === "team"}
+            liveMatchView={liveMatchView}
+            canStopLive={canUpdate}
+            onStopLive={stopLiveMatch}
           />
         )}
 

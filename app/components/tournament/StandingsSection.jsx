@@ -1,10 +1,58 @@
 import { Card, CardContent } from "../ui";
 
-export default function StandingsSection({ standings, showOwner = true }) {
+export default function StandingsSection({
+  standings,
+  showOwner = true,
+  liveMatchView = null,
+  canStopLive = false,
+  onStopLive = () => {},
+}) {
   const columns = showOwner ? "grid-cols-3" : "grid-cols-2";
   return (
     <div className="grid gap-3">
       <div className="text-xl font-extrabold">Standings</div>
+
+      {liveMatchView ? (
+        <Card>
+          <CardContent className="grid gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <div className="text-xs font-semibold text-slate-500">
+                  Live Match
+                </div>
+                <div className="text-base font-extrabold text-slate-900">
+                  {liveMatchView.teamsLabel}
+                </div>
+              </div>
+              {canStopLive ? (
+                <button
+                  type="button"
+                  onClick={onStopLive}
+                  className="rounded-full border border-slate-300 bg-white px-4 py-1 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+                >
+                  Stop
+                </button>
+              ) : null}
+            </div>
+            <div className="text-xs text-slate-500">
+              {liveMatchView.rowLabel} • {liveMatchView.status}
+            </div>
+            <div className="grid gap-1 text-xs text-slate-600">
+              <div>
+                <span className="font-semibold">{liveMatchView.t1}:</span>{" "}
+                {liveMatchView.t1Players || "—"}
+              </div>
+              <div>
+                <span className="font-semibold">{liveMatchView.t2}:</span>{" "}
+                {liveMatchView.t2Players || "—"}
+              </div>
+            </div>
+            <div className="text-sm font-bold text-slate-800">
+              {liveMatchView.scoreText}
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardContent className="p-0">

@@ -55,11 +55,6 @@ export default function MatchesSection({
     const player = team?.players?.find((p) => p.rank === rank);
     return player?.name || "";
   };
-  const playerLabel = (teamName, rank) => {
-    if (!rank) return "";
-    const name = getPlayerName(teamName, rank);
-    return name ? `${rank} - ${name}` : rank;
-  };
   const scoreSearchText = (fixtureKey, t1, t2) => {
     const rowScores = scores?.[fixtureKey] || {};
     const values = Object.values(rowScores);
@@ -203,22 +198,6 @@ export default function MatchesSection({
         })
       : false;
 
-  const liveFixture = liveMatch
-    ? safeFixtures.find((fx) => fx.key === liveMatch.fixtureKey)
-    : null;
-  const liveRow = liveMatch
-    ? safeMatchRows.find((row) => String(row.id) === String(liveMatch.rowId))
-    : null;
-  const liveScore =
-    liveFixture && liveRow ? scores?.[liveFixture.key]?.[liveRow.id] || {} : {};
-  const liveTeamsLabel = liveFixture
-    ? `${liveFixture.t1} vs ${liveFixture.t2}`
-    : "";
-  const liveStatus = liveMatch
-    ? liveScore?.winner
-      ? `Winner: ${liveScore.winner === "t1" ? liveFixture.t1 : liveFixture.t2}`
-      : "Live"
-    : "";
   const liveMatchIsSelected = Boolean(
     liveMatch &&
       selectedFixture &&
@@ -279,53 +258,6 @@ export default function MatchesSection({
 
   return (
     <div className="grid gap-3">
-      {liveFixture && liveRow ? (
-        <Card>
-          <CardContent className="grid gap-2">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <div className="text-xs font-semibold text-slate-500">Live Match</div>
-                <div className="text-base font-extrabold text-slate-900">
-                  {liveTeamsLabel}
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => onStopLiveMatch()}
-                disabled={readOnly}
-                className="rounded-full border border-slate-300 bg-white px-4 py-1 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                Stop
-              </button>
-            </div>
-            <div className="text-xs text-slate-500">
-              {liveRow.label} • {liveStatus}
-            </div>
-            <div className="grid gap-1 text-xs text-slate-600">
-              <div>
-                <span className="font-semibold">{liveFixture.t1}:</span>{" "}
-                {[liveScore.t1Player1, liveScore.t1Player2]
-                  .filter(Boolean)
-                  .map((rank) => playerLabel(liveFixture.t1, rank))
-                  .join(", ") || "—"}
-              </div>
-              <div>
-                <span className="font-semibold">{liveFixture.t2}:</span>{" "}
-                {[liveScore.t2Player1, liveScore.t2Player2]
-                  .filter(Boolean)
-                  .map((rank) => playerLabel(liveFixture.t2, rank))
-                  .join(", ") || "—"}
-              </div>
-            </div>
-            <div className="text-sm font-bold text-slate-800">
-              {(liveScore.t1 ?? "") !== "" || (liveScore.t2 ?? "") !== ""
-                ? `${liveScore.t1 ?? 0} : ${liveScore.t2 ?? 0}`
-                : "Score pending"}
-            </div>
-          </CardContent>
-        </Card>
-      ) : null}
-
       <Card>
         <CardContent className="p-0">
           <div className="p-4 flex items-center justify-between">
