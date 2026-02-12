@@ -3,20 +3,12 @@ import { PrismaClient } from "@prisma/client";
 const globalForPrisma = globalThis;
 const createClient = () => new PrismaClient({ log: ["error", "warn"] });
 
-let prisma = globalForPrisma.prisma || createClient();
-
-const ensurePrisma = () => {
-  if (!prisma.matchLike) {
-    prisma = createClient();
-  }
-  if (process.env.NODE_ENV !== "production") {
-    globalForPrisma.prisma = prisma;
-  }
-  return prisma;
-};
+const prisma = globalForPrisma.prisma || createClient();
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
 }
+
+const ensurePrisma = () => prisma;
 
 export { prisma, ensurePrisma };
