@@ -54,7 +54,7 @@ export default function Page() {
   const [profiles, setProfiles] = useState([]);
   const [comments, setComments] = useState([]);
   const [matchLikes, setMatchLikes] = useState([]);
-  const [liveMatch, setLiveMatch] = useState(null);
+  const [liveMatches, setLiveMatches] = useState([]);
   const [matchFocus, setMatchFocus] = useState(null);
 
   const isTeamType = tournamentType === "team";
@@ -294,55 +294,59 @@ export default function Page() {
     return Array.from(map.values()).sort((a, b) => b.points - a.points);
   }, [fixtures, scores, teams]);
 
-  const liveMatchView = useMemo(() => {
-    if (!liveMatch) return null;
-    const fixture = fixtures.find((fx) => fx.key === liveMatch.fixtureKey);
-    const row = matchRows.find((r) => String(r.id) === String(liveMatch.rowId));
-    if (!fixture || !row) return null;
-    const score = scores?.[fixture.key]?.[row.id] || {};
-    const team1 = teams.find((t) => t.name === fixture.t1);
-    const team2 = teams.find((t) => t.name === fixture.t2);
+  const liveMatchViews = useMemo(() => {
+    if (!liveMatches.length) return [];
     const playerLabel = (team, rank) => {
       if (!rank) return "";
       const name = team?.players?.find((p) => p.rank === rank)?.name;
       return name ? `${rank} - ${name}` : rank;
     };
-    const t1Players = [score.t1Player1, score.t1Player2]
-      .filter(Boolean)
-      .map((rank) => playerLabel(team1, rank))
-      .join(", ");
-    const t2Players = [score.t2Player1, score.t2Player2]
-      .filter(Boolean)
-      .map((rank) => playerLabel(team2, rank))
-      .join(", ");
-    const winnerTeam =
-      score.winner === "t1"
-        ? fixture.t1
-        : score.winner === "t2"
-          ? fixture.t2
-          : "";
-    const status = winnerTeam ? `Winner: ${winnerTeam}` : "Live";
-    const hasScore =
-      score.t1 !== "" &&
-      score.t1 !== undefined &&
-      score.t2 !== "" &&
-      score.t2 !== undefined;
-    const scoreText = hasScore
-      ? `${score.t1 ?? 0} : ${score.t2 ?? 0}`
-      : "Score pending";
-    return {
-      fixtureKey: fixture.key,
-      rowId: row.id,
-      rowLabel: row.label || `Match ${row.id}`,
-      teamsLabel: `${fixture.t1} vs ${fixture.t2}`,
-      t1: fixture.t1,
-      t2: fixture.t2,
-      t1Players,
-      t2Players,
-      status,
-      scoreText,
-    };
-  }, [liveMatch, fixtures, matchRows, scores, teams]);
+    return liveMatches
+      .map((live) => {
+        const fixture = fixtures.find((fx) => fx.key === live.fixtureKey);
+        const row = matchRows.find((r) => String(r.id) === String(live.rowId));
+        if (!fixture || !row) return null;
+        const score = scores?.[fixture.key]?.[row.id] || {};
+        const team1 = teams.find((t) => t.name === fixture.t1);
+        const team2 = teams.find((t) => t.name === fixture.t2);
+        const t1Players = [score.t1Player1, score.t1Player2]
+          .filter(Boolean)
+          .map((rank) => playerLabel(team1, rank))
+          .join(", ");
+        const t2Players = [score.t2Player1, score.t2Player2]
+          .filter(Boolean)
+          .map((rank) => playerLabel(team2, rank))
+          .join(", ");
+        const winnerTeam =
+          score.winner === "t1"
+            ? fixture.t1
+            : score.winner === "t2"
+              ? fixture.t2
+              : "";
+        const status = winnerTeam ? `Winner: ${winnerTeam}` : "Live";
+        const hasScore =
+          score.t1 !== "" &&
+          score.t1 !== undefined &&
+          score.t2 !== "" &&
+          score.t2 !== undefined;
+        const scoreText = hasScore
+          ? `${score.t1 ?? 0} : ${score.t2 ?? 0}`
+          : "Score pending";
+        return {
+          fixtureKey: fixture.key,
+          rowId: row.id,
+          rowLabel: row.label || `Match ${row.id}`,
+          teamsLabel: `${fixture.t1} vs ${fixture.t2}`,
+          t1: fixture.t1,
+          t2: fixture.t2,
+          t1Players,
+          t2Players,
+          status,
+          scoreText,
+        };
+      })
+      .filter(Boolean);
+  }, [liveMatches, fixtures, matchRows, scores, teams]);
 
   const standingsLikeCount = useMemo(() => {
     const entry = matchLikes.find(
@@ -356,13 +360,13 @@ export default function Page() {
 
   const pairKeyForFixture = (t1, t2) => [t1, t2].sort().join(" vs ");
 
-  const openLiveMatch = () => {
-    if (!liveMatchView) return;
-    const pairKey = pairKeyForFixture(liveMatchView.t1, liveMatchView.t2);
+  const openLiveMatch = (view) => {
+    if (!view) return;
+    const pairKey = pairKeyForFixture(view.t1, view.t2);
     setMatchFocus({
       pairKey,
-      fixtureKey: liveMatchView.fixtureKey,
-      rowId: liveMatchView.rowId,
+      fixtureKey: view.fixtureKey,
+      rowId: view.rowId,
     });
     setSelectedMatch(pairKey);
     setTab("matches");
@@ -411,7 +415,7 @@ export default function Page() {
       setScores(record.scores || {});
       setManualFixtures(Array.isArray(record.fixtures) ? record.fixtures : []);
       setSelectedMatch(null);
-      setLiveMatch(null);
+      setLiveMatches([]);
       setMatchFocus(null);
       if (!preserveTab) {
         setTab("standings");
@@ -449,15 +453,32 @@ export default function Page() {
 
   const startLiveMatch = (fixtureKey, rowId) => {
     if (!fixtureKey || !rowId) return;
-    setLiveMatch({
+    const next = {
       fixtureKey,
       rowId: String(rowId),
       startedAt: new Date().toISOString(),
+    };
+    setLiveMatches((prev) => {
+      if (
+        prev.some(
+          (m) =>
+            m.fixtureKey === next.fixtureKey && String(m.rowId) === next.rowId
+        )
+      ) {
+        return prev;
+      }
+      return [...prev, next];
     });
   };
 
-  const stopLiveMatch = () => {
-    setLiveMatch(null);
+  const stopLiveMatch = (fixtureKey, rowId) => {
+    if (!fixtureKey || !rowId) return;
+    setLiveMatches((prev) =>
+      prev.filter(
+        (m) =>
+          !(m.fixtureKey === fixtureKey && String(m.rowId) === String(rowId))
+      )
+    );
   };
   const canUpdate =
     Boolean(selectedTournamentId) &&
@@ -955,7 +976,7 @@ export default function Page() {
               onLikeMatch={likeMatchRow}
               canComment={canComment}
               currentUser={currentUser}
-              liveMatch={liveMatch}
+              liveMatches={liveMatches}
               onStartLiveMatch={startLiveMatch}
               onStopLiveMatch={stopLiveMatch}
               focusMatch={matchFocus}
@@ -973,7 +994,7 @@ export default function Page() {
           <StandingsSection
             standings={standings}
             showOwner={tournamentType === "team"}
-            liveMatchView={liveMatchView}
+            liveMatchViews={liveMatchViews}
             onOpenMatch={openLiveMatch}
             comments={comments}
             onAddComment={addMatchComment}

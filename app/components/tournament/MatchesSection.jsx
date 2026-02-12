@@ -20,7 +20,7 @@ export default function MatchesSection({
   onLikeMatch = () => {},
   canComment = false,
   currentUser = null,
-  liveMatch = null,
+  liveMatches = [],
   onStartLiveMatch = () => {},
   onStopLiveMatch = () => {},
   focusMatch = null,
@@ -224,11 +224,13 @@ export default function MatchesSection({
       : false;
 
   const liveMatchIsSelected = Boolean(
-    liveMatch &&
-      selectedFixture &&
+    selectedFixture &&
       selectedRowId &&
-      liveMatch.fixtureKey === selectedFixture.key &&
-      String(liveMatch.rowId) === String(selectedRowId)
+      (liveMatches || []).some(
+        (m) =>
+          m.fixtureKey === selectedFixture.key &&
+          String(m.rowId) === String(selectedRowId)
+      )
   );
 
   useEffect(() => {
@@ -470,7 +472,7 @@ export default function MatchesSection({
                                     type="button"
                                     onClick={() => {
                                       if (liveMatchIsSelected) {
-                                        onStopLiveMatch();
+                                        onStopLiveMatch(fx.key, row.id);
                                       } else {
                                         onStartLiveMatch(fx.key, row.id);
                                       }

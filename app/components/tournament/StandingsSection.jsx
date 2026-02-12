@@ -4,7 +4,7 @@ import { Card, CardContent, Input } from "../ui";
 export default function StandingsSection({
   standings,
   showOwner = true,
-  liveMatchView = null,
+  liveMatchViews = [],
   onOpenMatch = null,
   comments = [],
   onAddComment = () => {},
@@ -31,44 +31,48 @@ export default function StandingsSection({
     <div className="grid gap-3">
       <div className="text-xl font-extrabold">Standings</div>
 
-      {liveMatchView ? (
+      {liveMatchViews.length ? (
         <Card>
-          <CardContent className="grid gap-2">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <div className="text-xs font-semibold text-slate-500">
-                  Live Match
+          <CardContent className="grid gap-3">
+            {liveMatchViews.map((view) => (
+              <div key={`${view.fixtureKey}:${view.rowId}`} className="grid gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <div className="text-xs font-semibold text-slate-500">
+                      Live Match
+                    </div>
+                    <div className="text-base font-extrabold text-slate-900">
+                      {view.teamsLabel}
+                    </div>
+                  </div>
+                  {onOpenMatch ? (
+                    <button
+                      type="button"
+                      onClick={() => onOpenMatch(view)}
+                      className="rounded-full border border-slate-300 bg-white px-4 py-1 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+                    >
+                      Open
+                    </button>
+                  ) : null}
                 </div>
-                <div className="text-base font-extrabold text-slate-900">
-                  {liveMatchView.teamsLabel}
+                <div className="text-xs text-slate-500">
+                  {view.rowLabel} • {view.status}
+                </div>
+                <div className="grid gap-1 text-xs text-slate-600">
+                  <div>
+                    <span className="font-semibold">{view.t1}:</span>{" "}
+                    {view.t1Players || "—"}
+                  </div>
+                  <div>
+                    <span className="font-semibold">{view.t2}:</span>{" "}
+                    {view.t2Players || "—"}
+                  </div>
+                </div>
+                <div className="text-sm font-bold text-slate-800">
+                  {view.scoreText}
                 </div>
               </div>
-              {onOpenMatch ? (
-                <button
-                  type="button"
-                  onClick={onOpenMatch}
-                  className="rounded-full border border-slate-300 bg-white px-4 py-1 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
-                >
-                  Open
-                </button>
-              ) : null}
-            </div>
-            <div className="text-xs text-slate-500">
-              {liveMatchView.rowLabel} • {liveMatchView.status}
-            </div>
-            <div className="grid gap-1 text-xs text-slate-600">
-              <div>
-                <span className="font-semibold">{liveMatchView.t1}:</span>{" "}
-                {liveMatchView.t1Players || "—"}
-              </div>
-              <div>
-                <span className="font-semibold">{liveMatchView.t2}:</span>{" "}
-                {liveMatchView.t2Players || "—"}
-              </div>
-            </div>
-            <div className="text-sm font-bold text-slate-800">
-              {liveMatchView.scoreText}
-            </div>
+            ))}
           </CardContent>
         </Card>
       ) : null}
