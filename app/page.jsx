@@ -54,6 +54,7 @@ export default function Page() {
   const [profiles, setProfiles] = useState([]);
   const [comments, setComments] = useState([]);
   const [matchLikes, setMatchLikes] = useState([]);
+  const [liveMatch, setLiveMatch] = useState(null);
 
   const isTeamType = tournamentType === "team";
 
@@ -333,6 +334,7 @@ export default function Page() {
       setScores(record.scores || {});
       setManualFixtures(Array.isArray(record.fixtures) ? record.fixtures : []);
       setSelectedMatch(null);
+      setLiveMatch(null);
       setTab("standings");
       setComments([]);
       setMatchLikes([]);
@@ -361,6 +363,19 @@ export default function Page() {
     currentUser?.access === "write" ||
     currentUser?.access === "score" ||
     currentUser?.access === "comment";
+
+  const startLiveMatch = (fixtureKey, rowId) => {
+    if (!fixtureKey || !rowId) return;
+    setLiveMatch({
+      fixtureKey,
+      rowId: String(rowId),
+      startedAt: new Date().toISOString(),
+    });
+  };
+
+  const stopLiveMatch = () => {
+    setLiveMatch(null);
+  };
   const canUpdate =
     Boolean(selectedTournamentId) &&
     (currentUser?.role === "admin" ||
@@ -848,6 +863,9 @@ export default function Page() {
               onLikeMatch={likeMatchRow}
               canComment={canComment}
               currentUser={currentUser}
+              liveMatch={liveMatch}
+              onStartLiveMatch={startLiveMatch}
+              onStopLiveMatch={stopLiveMatch}
               readOnly={
                 currentUser?.role !== "admin" &&
                 currentUser?.access !== "write" &&
