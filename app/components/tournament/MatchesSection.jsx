@@ -23,6 +23,8 @@ export default function MatchesSection({
   liveMatch = null,
   onStartLiveMatch = () => {},
   onStopLiveMatch = () => {},
+  focusMatch = null,
+  onFocusApplied = () => {},
   readOnly = false,
 }) {
   const [query, setQuery] = useState("");
@@ -164,6 +166,29 @@ export default function MatchesSection({
     selectedFixtures.find((fx) => fx.key === selectedFixtureKey) ||
     selectedFixtures[0] ||
     null;
+  useEffect(() => {
+    if (!focusMatch) return;
+    if (focusMatch.pairKey && focusMatch.pairKey !== selectedMatch) return;
+    if (
+      focusMatch.fixtureKey &&
+      selectedFixtures.some((fx) => fx.key === focusMatch.fixtureKey)
+    ) {
+      setSelectedFixtureKey(focusMatch.fixtureKey);
+    }
+    if (
+      focusMatch.rowId &&
+      safeMatchRows.some((row) => String(row.id) === String(focusMatch.rowId))
+    ) {
+      setSelectedRowId(String(focusMatch.rowId));
+    }
+    onFocusApplied();
+  }, [
+    focusMatch,
+    selectedMatch,
+    selectedFixtures,
+    safeMatchRows,
+    onFocusApplied,
+  ]);
   const visibleRowsForFixture = selectedFixture
     ? safeMatchRows.filter((row) =>
         rowMatchesQuery(row, selectedFixture.t1, selectedFixture.t2, selectedFixture.key)

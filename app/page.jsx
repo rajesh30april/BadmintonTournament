@@ -55,6 +55,7 @@ export default function Page() {
   const [comments, setComments] = useState([]);
   const [matchLikes, setMatchLikes] = useState([]);
   const [liveMatch, setLiveMatch] = useState(null);
+  const [matchFocus, setMatchFocus] = useState(null);
 
   const isTeamType = tournamentType === "team";
 
@@ -353,6 +354,20 @@ export default function Page() {
   const likeStandings = () =>
     likeMatchRow({ fixtureKey: "standings", rowId: "common" });
 
+  const pairKeyForFixture = (t1, t2) => [t1, t2].sort().join(" vs ");
+
+  const openLiveMatch = () => {
+    if (!liveMatchView) return;
+    const pairKey = pairKeyForFixture(liveMatchView.t1, liveMatchView.t2);
+    setMatchFocus({
+      pairKey,
+      fixtureKey: liveMatchView.fixtureKey,
+      rowId: liveMatchView.rowId,
+    });
+    setSelectedMatch(pairKey);
+    setTab("matches");
+  };
+
   const refreshTournaments = async () => {
     setLoadingTournaments(true);
     setLoadError("");
@@ -395,6 +410,7 @@ export default function Page() {
       setManualFixtures(Array.isArray(record.fixtures) ? record.fixtures : []);
       setSelectedMatch(null);
       setLiveMatch(null);
+      setMatchFocus(null);
       setTab("standings");
       setComments([]);
       setMatchLikes([]);
@@ -927,6 +943,8 @@ export default function Page() {
               liveMatch={liveMatch}
               onStartLiveMatch={startLiveMatch}
               onStopLiveMatch={stopLiveMatch}
+              focusMatch={matchFocus}
+              onFocusApplied={() => setMatchFocus(null)}
               readOnly={
                 currentUser?.role !== "admin" &&
                 currentUser?.access !== "write" &&
@@ -941,8 +959,7 @@ export default function Page() {
             standings={standings}
             showOwner={tournamentType === "team"}
             liveMatchView={liveMatchView}
-            canStopLive={canUpdate}
-            onStopLive={stopLiveMatch}
+            onOpenMatch={openLiveMatch}
             comments={comments}
             onAddComment={addMatchComment}
             onLikeComment={likeMatchComment}

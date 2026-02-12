@@ -5,8 +5,7 @@ export default function StandingsSection({
   standings,
   showOwner = true,
   liveMatchView = null,
-  canStopLive = false,
-  onStopLive = () => {},
+  onOpenMatch = null,
   comments = [],
   onAddComment = () => {},
   onLikeComment = () => {},
@@ -72,13 +71,13 @@ export default function StandingsSection({
                   {liveMatchView.teamsLabel}
                 </div>
               </div>
-              {canStopLive ? (
+              {onOpenMatch ? (
                 <button
                   type="button"
-                  onClick={onStopLive}
+                  onClick={onOpenMatch}
                   className="rounded-full border border-slate-300 bg-white px-4 py-1 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
                 >
-                  Stop
+                  Open
                 </button>
               ) : null}
             </div>
