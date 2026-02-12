@@ -383,7 +383,7 @@ export default function Page() {
     }
   };
 
-  const loadTournament = async (id) => {
+  const loadTournament = async (id, options = {}) => {
     if (!id) {
       setLoadError("Select a tournament to load.");
       return;
@@ -391,6 +391,8 @@ export default function Page() {
     setLoadingSelectedTournament(true);
     setLoadError("");
     setLoadSuccess("");
+    const { preserveTab = false } = options;
+    const currentTab = tab;
     try {
       const res = await fetch(`/api/tournaments/${id}`, { cache: "no-store" });
       if (!res.ok) {
@@ -411,7 +413,11 @@ export default function Page() {
       setSelectedMatch(null);
       setLiveMatch(null);
       setMatchFocus(null);
-      setTab("standings");
+      if (!preserveTab) {
+        setTab("standings");
+      } else {
+        setTab(currentTab);
+      }
       setComments([]);
       setMatchLikes([]);
       fetch(`/api/comments?tournamentId=${id}`, { cache: "no-store" })
@@ -738,7 +744,7 @@ export default function Page() {
 
   const handleRefresh = async () => {
     if (selectedTournamentId) {
-      await loadTournament(selectedTournamentId);
+      await loadTournament(selectedTournamentId, { preserveTab: true });
       return;
     }
     await refreshTournaments();
