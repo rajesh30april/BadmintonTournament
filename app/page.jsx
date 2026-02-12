@@ -736,6 +736,14 @@ export default function Page() {
     }
   };
 
+  const handleRefresh = async () => {
+    if (selectedTournamentId) {
+      await loadTournament(selectedTournamentId);
+      return;
+    }
+    await refreshTournaments();
+  };
+
   return (
     <div className="min-h-screen bg-slate-50">
       <HeaderBar
@@ -743,6 +751,7 @@ export default function Page() {
         username={currentUser?.username}
         onLogout={handleLogout}
         onMenu={() => setMenuOpen(true)}
+        onRefresh={handleRefresh}
       />
       {toast ? (
         <div className="fixed right-4 bottom-20 z-50">
