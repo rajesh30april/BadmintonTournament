@@ -32,6 +32,9 @@ export default function MatchesSection({
   const [selectedFixtureKey, setSelectedFixtureKey] = useState("");
   const [selectedRowId, setSelectedRowId] = useState("");
   const canLike = Boolean(currentUser?.username);
+  const isFocusing = Boolean(
+    focusMatch?.fixtureKey || focusMatch?.rowId || focusMatch?.rowLabel
+  );
   const normalizedQuery = query.trim().toLowerCase();
   const safeFixtures = Array.isArray(fixtures) ? fixtures : [];
   const safeMatchRows = Array.isArray(matchRows) ? matchRows : [];
@@ -95,6 +98,15 @@ export default function MatchesSection({
     if (fx?.date) return `Match ${idx + 1} • ${fx.date}`;
     return `Match ${idx + 1}`;
   };
+  const rowDisplayLabel = (row) => {
+    if (!row) return "";
+    const typeRows = safeMatchRows.filter((r) => r.label === row.label);
+    const typeIndex = typeRows.findIndex((r) => r.id === row.id) + 1;
+    if (typeRows.length > 1 && typeIndex > 0) {
+      return `${row.label} · Match ${typeIndex} of ${typeRows.length}`;
+    }
+    return `${row.label} Match`;
+  };
 
   const filteredPairs = normalizedQuery
     ? pairOptions.filter((pair) => {
@@ -123,6 +135,7 @@ export default function MatchesSection({
   }, [filteredPairs, selectedMatch, onSelectMatch, focusMatch]);
 
   const rowMatchesQuery = (row, t1, t2, fixtureKey) => {
+    if (isFocusing && focusMatch?.fixtureKey === fixtureKey) return true;
     if (!normalizedQuery) return true;
     const rowScore = scores?.[fixtureKey]?.[row.id] || {};
     const t1p1 = rowScore.t1Player1 || "";
@@ -167,6 +180,10 @@ export default function MatchesSection({
     selectedFixtures.find((fx) => fx.key === selectedFixtureKey) ||
     selectedFixtures[0] ||
     null;
+  const focusFixture = focusMatch?.fixtureKey
+    ? selectedFixtures.find((fx) => fx.key === focusMatch.fixtureKey)
+    : null;
+  const activeFixture = focusFixture || selectedFixture;
   useEffect(() => {
     if (!focusMatch) return;
     if (query) setQuery("");
@@ -174,30 +191,44 @@ export default function MatchesSection({
       onSelectMatch(focusMatch.pairKey);
       return;
     }
-    let applied = false;
+    let appliedFixture = false;
+    let appliedRow = false;
     if (
       focusMatch.fixtureKey &&
       selectedFixtures.some((fx) => fx.key === focusMatch.fixtureKey)
     ) {
       setSelectedFixtureKey(focusMatch.fixtureKey);
-      applied = true;
+      appliedFixture = true;
     }
     if (
       focusMatch.rowId &&
       safeMatchRows.some((row) => String(row.id) === String(focusMatch.rowId))
     ) {
       setSelectedRowId(String(focusMatch.rowId));
-      applied = true;
+      appliedRow = true;
     } else if (focusMatch.rowLabel) {
-      const fallback = safeMatchRows.find(
+      const sameLabelRows = safeMatchRows.filter(
         (row) => row.label === focusMatch.rowLabel
       );
+      let fallback = null;
+      if (sameLabelRows.length) {
+        const idx = Number.isFinite(focusMatch.rowIndex)
+          ? focusMatch.rowIndex
+          : 0;
+        const safeIndex = Math.min(
+          sameLabelRows.length - 1,
+          Math.max(0, idx)
+        );
+        fallback = sameLabelRows[safeIndex] || sameLabelRows[0];
+      }
       if (fallback) {
         setSelectedRowId(String(fallback.id));
-        applied = true;
+        appliedRow = true;
       }
     }
-    if (applied) {
+    const needsFixture = Boolean(focusMatch.fixtureKey);
+    const needsRow = Boolean(focusMatch.rowId || focusMatch.rowLabel);
+    if ((!needsFixture || appliedFixture) && (!needsRow || appliedRow)) {
       onFocusApplied();
     }
   }, [
@@ -209,9 +240,9 @@ export default function MatchesSection({
     onSelectMatch,
     query,
   ]);
-  const visibleRowsForFixture = selectedFixture
+  const visibleRowsForFixture = activeFixture
     ? safeMatchRows.filter((row) =>
-        rowMatchesQuery(row, selectedFixture.t1, selectedFixture.t2, selectedFixture.key)
+        rowMatchesQuery(row, activeFixture.t1, activeFixture.t2, activeFixture.key)
       )
     : [];
   useEffect(() => {
@@ -219,6 +250,7 @@ export default function MatchesSection({
       setSelectedRowId("");
       return;
     }
+    if (isFocusing) return;
     const stillValid = visibleRowsForFixture.some(
       (row) => String(row.id) === String(selectedRowId)
     );
@@ -244,11 +276,11 @@ export default function MatchesSection({
       : false;
 
   const liveMatchIsSelected = Boolean(
-    selectedFixture &&
+    activeFixture &&
       selectedRowId &&
       (liveMatches || []).some(
         (m) =>
-          m.fixtureKey === selectedFixture.key &&
+          m.fixtureKey === activeFixture.key &&
           String(m.rowId) === String(selectedRowId)
       )
   );
@@ -380,14 +412,46 @@ export default function MatchesSection({
             </div>
 
             {(() => {
-              if (!selectedFixture) return null;
-              const fx = selectedFixture;
+              if (!activeFixture) return null;
+              const fx = activeFixture;
               const t1 = fx.t1 || "Team 1";
               const t2 = fx.t2 || "Team 2";
               const team1 = teams.find((t) => t.name === t1);
               const team2 = teams.find((t) => t.name === t2);
               const visibleRows = visibleRowsForFixture;
+              const focusRow = (() => {
+                if (!focusMatch) return null;
+                if (
+                  focusMatch.rowId &&
+                  visibleRows.some(
+                    (row) => String(row.id) === String(focusMatch.rowId)
+                  )
+                ) {
+                  return (
+                    visibleRows.find(
+                      (row) => String(row.id) === String(focusMatch.rowId)
+                    ) || null
+                  );
+                }
+                if (focusMatch.rowLabel) {
+                  const sameLabel = visibleRows.filter(
+                    (row) => row.label === focusMatch.rowLabel
+                  );
+                  if (sameLabel.length) {
+                    const idx = Number.isFinite(focusMatch.rowIndex)
+                      ? focusMatch.rowIndex
+                      : 0;
+                    const safeIndex = Math.min(
+                      sameLabel.length - 1,
+                      Math.max(0, idx)
+                    );
+                    return sameLabel[safeIndex] || sameLabel[0] || null;
+                  }
+                }
+                return null;
+              })();
               const selectedRow =
+                focusRow ||
                 visibleRows.find((row) => String(row.id) === String(selectedRowId)) ||
                 visibleRows[0] ||
                 null;
@@ -419,7 +483,7 @@ export default function MatchesSection({
                       >
                         {visibleRows.map((row) => (
                           <option key={row.id} value={row.id}>
-                            {row.label}
+                            {rowDisplayLabel(row)}
                           </option>
                         ))}
                       </Select>
@@ -476,17 +540,7 @@ export default function MatchesSection({
                               <div className="px-3 py-2 font-extrabold border-b">
                                 <div className="flex items-center justify-between gap-2">
                                   <span>
-                                    {(() => {
-                                      const typeRows = safeMatchRows.filter(
-                                        (r) => r.label === row.label
-                                      );
-                                      const typeIndex =
-                                        typeRows.findIndex((r) => r.id === row.id) + 1;
-                                      if (typeRows.length > 1) {
-                                        return `${row.label} · Match ${typeIndex} of ${typeRows.length}`;
-                                      }
-                                      return `${row.label} Match`;
-                                    })()}
+                                    {rowDisplayLabel(row)}
                                   </span>
                                   <button
                                     type="button"

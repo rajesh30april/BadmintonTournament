@@ -57,6 +57,38 @@ export default function Page() {
   const [liveMatches, setLiveMatches] = useState([]);
   const [matchFocus, setMatchFocus] = useState(null);
 
+  const liveMatchStorageKey = (id) => `liveMatches:${id}`;
+  const readLiveMatches = (id) => {
+    if (!id || typeof window === "undefined") return [];
+    try {
+      const raw = window.localStorage.getItem(liveMatchStorageKey(id));
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  };
+  const writeLiveMatches = (id, matches) => {
+    if (!id || typeof window === "undefined") return;
+    try {
+      if (!matches?.length) {
+        window.localStorage.removeItem(liveMatchStorageKey(id));
+        return;
+      }
+      window.localStorage.setItem(
+        liveMatchStorageKey(id),
+        JSON.stringify(matches)
+      );
+    } catch {
+      // ignore storage errors
+    }
+  };
+
+  useEffect(() => {
+    if (!selectedTournamentId) return;
+    writeLiveMatches(selectedTournamentId, liveMatches);
+  }, [selectedTournamentId, liveMatches]);
+
   const isTeamType = tournamentType === "team";
 
   const matchTypeOptions = useMemo(() => {
@@ -95,6 +127,24 @@ export default function Page() {
       .then((json) => setCurrentUser(json.user))
       .catch(() => setCurrentUser(null));
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const savedId = window.localStorage.getItem("selectedTournamentId");
+    if (savedId) {
+      setSelectedTournamentId(savedId);
+      loadTournament(savedId, { preserveTab: true, preserveLiveMatches: false });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (selectedTournamentId) {
+      window.localStorage.setItem("selectedTournamentId", selectedTournamentId);
+    } else {
+      window.localStorage.removeItem("selectedTournamentId");
+    }
+  }, [selectedTournamentId]);
 
   useEffect(() => {
     fetch("/api/profiles", { cache: "no-store" })
@@ -149,6 +199,26 @@ export default function Page() {
     () => buildMatchRows(matchTypeOptions, matchTypeConfig),
     [matchTypeOptions, matchTypeConfig]
   );
+
+  useEffect(() => {
+    if (!matchRows.length || !liveMatches.length) return;
+    setLiveMatches((prev) => {
+      let changed = false;
+      const next = prev.map((m) => {
+        if (m.rowLabel) return m;
+        const row = matchRows.find((r) => String(r.id) === String(m.rowId));
+        if (!row) return m;
+        const sameLabelRows = matchRows.filter((r) => r.label === row.label);
+        const rowIndex = Math.max(
+          0,
+          sameLabelRows.findIndex((r) => String(r.id) === String(row.id))
+        );
+        changed = true;
+        return { ...m, rowLabel: row.label, rowIndex };
+      });
+      return changed ? next : prev;
+    });
+  }, [matchRows, liveMatches.length]);
 
   const totalPlayers = useMemo(
     () => teams.reduce((acc, t) => acc + (t.players?.length || 0), 0),
@@ -301,10 +371,31 @@ export default function Page() {
       const name = team?.players?.find((p) => p.rank === rank)?.name;
       return name ? `${rank} - ${name}` : rank;
     };
+    const buildRowLabel = (row) => {
+      if (!row) return "";
+      const sameLabelRows = matchRows.filter((r) => r.label === row.label);
+      const typeIndex =
+        sameLabelRows.findIndex((r) => String(r.id) === String(row.id)) + 1;
+      if (sameLabelRows.length > 1 && typeIndex > 0) {
+        return `${row.label} · Match ${typeIndex} of ${sameLabelRows.length}`;
+      }
+      return `${row.label} Match`;
+    };
     return liveMatches
       .map((live) => {
         const fixture = fixtures.find((fx) => fx.key === live.fixtureKey);
-        const row = matchRows.find((r) => String(r.id) === String(live.rowId));
+        let row = matchRows.find((r) => String(r.id) === String(live.rowId));
+        if (!row && live.rowLabel) {
+          const sameLabel = matchRows.filter((r) => r.label === live.rowLabel);
+          if (sameLabel.length) {
+            const idx = Number.isFinite(live.rowIndex) ? live.rowIndex : 0;
+            const safeIndex = Math.min(
+              sameLabel.length - 1,
+              Math.max(0, idx)
+            );
+            row = sameLabel[safeIndex] || sameLabel[0];
+          }
+        }
         if (!fixture || !row) return null;
         const score = scores?.[fixture.key]?.[row.id] || {};
         const team1 = teams.find((t) => t.name === fixture.t1);
@@ -332,10 +423,16 @@ export default function Page() {
         const scoreText = hasScore
           ? `${score.t1 ?? 0} : ${score.t2 ?? 0}`
           : "Score pending";
+        const sameLabelRows = matchRows.filter((r) => r.label === row.label);
+        const rowIndex = Math.max(
+          0,
+          sameLabelRows.findIndex((r) => String(r.id) === String(row.id))
+        );
         return {
           fixtureKey: fixture.key,
           rowId: row.id,
-          rowLabel: row.label || `Match ${row.id}`,
+          rowLabel: buildRowLabel(row),
+          rowIndex,
           teamsLabel: `${fixture.t1} vs ${fixture.t2}`,
           t1: fixture.t1,
           t2: fixture.t2,
@@ -368,6 +465,7 @@ export default function Page() {
       fixtureKey: view.fixtureKey,
       rowId: view.rowId,
       rowLabel: view.rowLabel || "",
+      rowIndex: Number.isFinite(view.rowIndex) ? view.rowIndex : undefined,
     });
     setSelectedMatch(pairKey);
     setTab("matches");
@@ -398,6 +496,7 @@ export default function Page() {
     setLoadSuccess("");
     const { preserveTab = false, preserveLiveMatches = false } = options;
     const currentTab = tab;
+    const storedLiveMatches = preserveLiveMatches ? null : readLiveMatches(id);
     try {
       const res = await fetch(`/api/tournaments/${id}`, { cache: "no-store" });
       if (!res.ok) {
@@ -417,7 +516,7 @@ export default function Page() {
       setManualFixtures(Array.isArray(record.fixtures) ? record.fixtures : []);
       setSelectedMatch(null);
       if (!preserveLiveMatches) {
-        setLiveMatches([]);
+        setLiveMatches(Array.isArray(storedLiveMatches) ? storedLiveMatches : []);
       }
       setMatchFocus(null);
       if (!preserveTab) {
@@ -456,9 +555,21 @@ export default function Page() {
 
   const startLiveMatch = (fixtureKey, rowId) => {
     if (!fixtureKey || !rowId) return;
+    const row = matchRows.find((r) => String(r.id) === String(rowId));
+    const sameLabelRows = row
+      ? matchRows.filter((r) => r.label === row.label)
+      : [];
+    const rowIndex = row
+      ? Math.max(
+          0,
+          sameLabelRows.findIndex((r) => String(r.id) === String(row.id))
+        )
+      : 0;
     const next = {
       fixtureKey,
       rowId: String(rowId),
+      rowLabel: row?.label || "",
+      rowIndex,
       startedAt: new Date().toISOString(),
     };
     setLiveMatches((prev) => {
@@ -860,8 +971,15 @@ export default function Page() {
                   value={selectedTournamentId}
                   onChange={(e) => {
                     const id = e.target.value;
+                    const sameTournament =
+                      id && id === selectedTournamentId;
                     setSelectedTournamentId(id);
-                    if (id) loadTournament(id);
+                    if (id) {
+                      loadTournament(id, {
+                        preserveTab: sameTournament,
+                        preserveLiveMatches: sameTournament,
+                      });
+                    }
                   }}
                   disabled={loadingSelectedTournament || loadingTournaments}
                 >
