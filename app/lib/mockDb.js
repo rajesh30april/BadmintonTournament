@@ -66,13 +66,17 @@ let globalProfiles = [
 
 let comments = [];
 let matchLikes = [];
+let liveMatches = [];
 
 export function listTournaments() {
   return tournaments;
 }
 
 export function getTournament(id) {
-  return tournaments.find((t) => t.id === id) || null;
+  const record = tournaments.find((t) => t.id === id);
+  if (!record) return null;
+  const live = liveMatches.filter((m) => m.tournamentId === id);
+  return { ...record, liveMatches: live };
 }
 
 export function getProfiles() {
@@ -128,6 +132,7 @@ export function updateTournament(id, payload) {
 export function deleteTournament(id) {
   const before = tournaments.length;
   tournaments = tournaments.filter((t) => t.id !== id);
+  liveMatches = liveMatches.filter((m) => m.tournamentId !== id);
   return tournaments.length !== before;
 }
 
@@ -196,4 +201,52 @@ export function likeMatch(tournamentId, fixtureKey, rowId) {
   };
   matchLikes = [...matchLikes.slice(0, idx), updated, ...matchLikes.slice(idx + 1)];
   return updated;
+}
+
+export function listLiveMatches(tournamentId) {
+  if (!tournamentId) return [];
+  return liveMatches.filter((m) => m.tournamentId === tournamentId);
+}
+
+export function startLiveMatch(tournamentId, fixtureKey, rowId, rowLabel, rowIndex) {
+  if (!tournamentId || !fixtureKey || !rowId) return null;
+  const idx = liveMatches.findIndex(
+    (m) =>
+      m.tournamentId === tournamentId &&
+      m.fixtureKey === fixtureKey &&
+      String(m.rowId) === String(rowId)
+  );
+  const entry = {
+    id: `lm-${Math.random().toString(36).slice(2, 8)}`,
+    tournamentId,
+    fixtureKey,
+    rowId: String(rowId),
+    rowLabel: rowLabel || "",
+    rowIndex: Number.isFinite(rowIndex) ? rowIndex : 0,
+    startedAt: now(),
+  };
+  if (idx === -1) {
+    liveMatches = [...liveMatches, entry];
+    return entry;
+  }
+  liveMatches = [
+    ...liveMatches.slice(0, idx),
+    { ...liveMatches[idx], rowLabel: entry.rowLabel, rowIndex: entry.rowIndex },
+    ...liveMatches.slice(idx + 1),
+  ];
+  return liveMatches[idx];
+}
+
+export function stopLiveMatch(tournamentId, fixtureKey, rowId) {
+  if (!tournamentId || !fixtureKey || !rowId) return false;
+  const before = liveMatches.length;
+  liveMatches = liveMatches.filter(
+    (m) =>
+      !(
+        m.tournamentId === tournamentId &&
+        m.fixtureKey === fixtureKey &&
+        String(m.rowId) === String(rowId)
+      )
+  );
+  return liveMatches.length !== before;
 }

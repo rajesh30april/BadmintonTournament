@@ -24,6 +24,7 @@ model Tournament {
   teams      Team[]
   comments   Comment[]
   matchLikes MatchLike[]
+  liveMatches LiveMatch[]
 }
 
 model UserAccount {
@@ -144,6 +145,20 @@ model MatchLike {
   rowId        String     @db.NVarChar(20)
   likes        Int        @default(0)
   createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, fixtureKey, rowId])
+}
+
+model LiveMatch {
+  id           String     @id @default(cuid())
+  tournamentId String
+  fixtureKey   String     @db.NVarChar(200)
+  rowId        String     @db.NVarChar(20)
+  rowLabel     String?    @db.NVarChar(20)
+  rowIndex     Int        @default(0)
+  startedAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
 

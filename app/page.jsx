@@ -57,38 +57,6 @@ export default function Page() {
   const [liveMatches, setLiveMatches] = useState([]);
   const [matchFocus, setMatchFocus] = useState(null);
 
-  const liveMatchStorageKey = (id) => `liveMatches:${id}`;
-  const readLiveMatches = (id) => {
-    if (!id || typeof window === "undefined") return [];
-    try {
-      const raw = window.localStorage.getItem(liveMatchStorageKey(id));
-      const parsed = raw ? JSON.parse(raw) : [];
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  };
-  const writeLiveMatches = (id, matches) => {
-    if (!id || typeof window === "undefined") return;
-    try {
-      if (!matches?.length) {
-        window.localStorage.removeItem(liveMatchStorageKey(id));
-        return;
-      }
-      window.localStorage.setItem(
-        liveMatchStorageKey(id),
-        JSON.stringify(matches)
-      );
-    } catch {
-      // ignore storage errors
-    }
-  };
-
-  useEffect(() => {
-    if (!selectedTournamentId) return;
-    writeLiveMatches(selectedTournamentId, liveMatches);
-  }, [selectedTournamentId, liveMatches]);
-
   const isTeamType = tournamentType === "team";
 
   const matchTypeOptions = useMemo(() => {
@@ -133,7 +101,7 @@ export default function Page() {
     const savedId = window.localStorage.getItem("selectedTournamentId");
     if (savedId) {
       setSelectedTournamentId(savedId);
-      loadTournament(savedId, { preserveTab: true, preserveLiveMatches: false });
+      loadTournament(savedId, { preserveTab: true });
     }
   }, []);
 
@@ -494,9 +462,8 @@ export default function Page() {
     setLoadingSelectedTournament(true);
     setLoadError("");
     setLoadSuccess("");
-    const { preserveTab = false, preserveLiveMatches = false } = options;
+    const { preserveTab = false } = options;
     const currentTab = tab;
-    const storedLiveMatches = preserveLiveMatches ? null : readLiveMatches(id);
     try {
       const res = await fetch(`/api/tournaments/${id}`, { cache: "no-store" });
       if (!res.ok) {
@@ -515,9 +482,7 @@ export default function Page() {
       setScores(record.scores || {});
       setManualFixtures(Array.isArray(record.fixtures) ? record.fixtures : []);
       setSelectedMatch(null);
-      if (!preserveLiveMatches) {
-        setLiveMatches(Array.isArray(storedLiveMatches) ? storedLiveMatches : []);
-      }
+      setLiveMatches(Array.isArray(record.liveMatches) ? record.liveMatches : []);
       setMatchFocus(null);
       if (!preserveTab) {
         setTab("standings");
@@ -572,27 +537,64 @@ export default function Page() {
       rowIndex,
       startedAt: new Date().toISOString(),
     };
-    setLiveMatches((prev) => {
-      if (
-        prev.some(
-          (m) =>
-            m.fixtureKey === next.fixtureKey && String(m.rowId) === next.rowId
-        )
-      ) {
-        return prev;
-      }
-      return [...prev, next];
-    });
+    if (!selectedTournamentId) {
+      setLiveMatches((prev) => {
+        if (
+          prev.some(
+            (m) =>
+              m.fixtureKey === next.fixtureKey &&
+              String(m.rowId) === next.rowId
+          )
+        ) {
+          return prev;
+        }
+        return [...prev, next];
+      });
+      return;
+    }
+    fetch("/api/live-matches", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tournamentId: selectedTournamentId,
+        fixtureKey,
+        rowId: String(rowId),
+        rowLabel: row?.label || "",
+        rowIndex,
+      }),
+    })
+      .then((res) => (res.ok ? res.json() : Promise.reject()))
+      .then((json) =>
+        setLiveMatches(Array.isArray(json.data) ? json.data : [])
+      )
+      .catch(() => setLiveMatches((prev) => prev));
   };
 
   const stopLiveMatch = (fixtureKey, rowId) => {
     if (!fixtureKey || !rowId) return;
-    setLiveMatches((prev) =>
-      prev.filter(
-        (m) =>
-          !(m.fixtureKey === fixtureKey && String(m.rowId) === String(rowId))
+    if (!selectedTournamentId) {
+      setLiveMatches((prev) =>
+        prev.filter(
+          (m) =>
+            !(m.fixtureKey === fixtureKey && String(m.rowId) === String(rowId))
+        )
+      );
+      return;
+    }
+    fetch("/api/live-matches", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tournamentId: selectedTournamentId,
+        fixtureKey,
+        rowId: String(rowId),
+      }),
+    })
+      .then((res) => (res.ok ? res.json() : Promise.reject()))
+      .then((json) =>
+        setLiveMatches(Array.isArray(json.data) ? json.data : [])
       )
-    );
+      .catch(() => setLiveMatches((prev) => prev));
   };
   const canUpdate =
     Boolean(selectedTournamentId) &&
@@ -881,7 +883,6 @@ export default function Page() {
     if (selectedTournamentId) {
       await loadTournament(selectedTournamentId, {
         preserveTab: true,
-        preserveLiveMatches: true,
       });
       return;
     }
@@ -977,7 +978,6 @@ export default function Page() {
                     if (id) {
                       loadTournament(id, {
                         preserveTab: sameTournament,
-                        preserveLiveMatches: sameTournament,
                       });
                     }
                   }}

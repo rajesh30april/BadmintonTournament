@@ -6,6 +6,9 @@ import {
   listComments as listCommentsMock,
   listTournaments as listMock,
   addComment as addCommentMock,
+  listLiveMatches as listLiveMatchesMock,
+  startLiveMatch as startLiveMatchMock,
+  stopLiveMatch as stopLiveMatchMock,
   updateTournament as updateMock,
   updateProfiles as updateProfilesMock,
 } from "./mockDb";
@@ -67,6 +70,7 @@ export async function getTournament(id) {
       fixtures: true,
       teams: { include: { players: true } },
       results: true,
+      liveMatches: true,
     },
   });
   if (!record) return null;
@@ -95,6 +99,13 @@ export async function getTournament(id) {
       key: f.key,
       t1: f.t1,
       t2: f.t2,
+    })),
+    liveMatches: (record.liveMatches || []).map((m) => ({
+      fixtureKey: m.fixtureKey,
+      rowId: String(m.rowId),
+      rowLabel: m.rowLabel || "",
+      rowIndex: m.rowIndex || 0,
+      startedAt: m.startedAt,
     })),
     scores,
     createdAt: record.createdAt,
@@ -198,6 +209,71 @@ export async function likeMatch({ tournamentId, fixtureKey, rowId }) {
       likes: 1,
     },
   });
+}
+
+export async function listLiveMatches(tournamentId) {
+  if (!tournamentId) return [];
+  if (useMock()) return listLiveMatchesMock(tournamentId);
+  const prisma = await getPrisma();
+  const rows = await prisma.liveMatch.findMany({
+    where: { tournamentId },
+    orderBy: { startedAt: "desc" },
+  });
+  return rows.map((m) => ({
+    fixtureKey: m.fixtureKey,
+    rowId: String(m.rowId),
+    rowLabel: m.rowLabel || "",
+    rowIndex: m.rowIndex || 0,
+    startedAt: m.startedAt,
+  }));
+}
+
+export async function startLiveMatch(
+  tournamentId,
+  fixtureKey,
+  rowId,
+  rowLabel,
+  rowIndex
+) {
+  if (!tournamentId || !fixtureKey || !rowId) return null;
+  if (useMock()) {
+    return startLiveMatchMock(tournamentId, fixtureKey, rowId, rowLabel, rowIndex);
+  }
+  const prisma = await getPrisma();
+  return prisma.liveMatch.upsert({
+    where: {
+      tournamentId_fixtureKey_rowId: {
+        tournamentId,
+        fixtureKey,
+        rowId: String(rowId),
+      },
+    },
+    create: {
+      tournamentId,
+      fixtureKey,
+      rowId: String(rowId),
+      rowLabel: rowLabel || null,
+      rowIndex: Number.isFinite(rowIndex) ? rowIndex : 0,
+    },
+    update: {
+      rowLabel: rowLabel || null,
+      rowIndex: Number.isFinite(rowIndex) ? rowIndex : 0,
+    },
+  });
+}
+
+export async function stopLiveMatch(tournamentId, fixtureKey, rowId) {
+  if (!tournamentId || !fixtureKey || !rowId) return false;
+  if (useMock()) return stopLiveMatchMock(tournamentId, fixtureKey, rowId);
+  const prisma = await getPrisma();
+  await prisma.liveMatch.deleteMany({
+    where: {
+      tournamentId,
+      fixtureKey,
+      rowId: String(rowId),
+    },
+  });
+  return true;
 }
 
 export async function createTournament(payload) {
