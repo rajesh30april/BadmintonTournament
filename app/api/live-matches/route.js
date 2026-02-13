@@ -3,7 +3,7 @@ import {
   listLiveMatches,
   startLiveMatch,
   stopLiveMatch,
-} from "@/app/lib/tournamentStore";
+} from "../../lib/tournamentStore";
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
