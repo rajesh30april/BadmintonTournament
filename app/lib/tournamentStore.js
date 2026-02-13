@@ -357,9 +357,13 @@ export async function updateTournament(id, payload) {
 
 export async function updateTournamentScoresOnly(id, scores, updatedBy) {
   if (!id) return null;
+  const incomingScores = scores || {};
   if (useMock()) {
+    const existing = getMock(id);
+    if (!existing) return null;
+    const merged = mergeScores(existing.scores || {}, incomingScores);
     return updateMock(id, {
-      scores: scores || {},
+      scores: merged,
       updatedBy: updatedBy || null,
     });
   }
@@ -369,9 +373,11 @@ export async function updateTournamentScoresOnly(id, scores, updatedBy) {
     select: { id: true },
   });
   if (!existing) return null;
+  const current = await getTournament(id);
+  const mergedScores = mergeScores(current?.scores || {}, incomingScores);
   await prisma.$transaction(async (tx) => {
     await tx.matchResult.deleteMany({ where: { tournamentId: id } });
-    const results = buildResultsFromScores(id, scores || {});
+    const results = buildResultsFromScores(id, mergedScores);
     if (results.length) {
       await tx.matchResult.createMany({ data: results });
     }
@@ -381,6 +387,36 @@ export async function updateTournamentScoresOnly(id, scores, updatedBy) {
     });
   });
   return getTournament(id);
+}
+
+function mergeScores(base, updates) {
+  const merged = {};
+  const baseKeys = base && typeof base === "object" ? Object.keys(base) : [];
+  const updateKeys =
+    updates && typeof updates === "object" ? Object.keys(updates) : [];
+  baseKeys.forEach((fixtureKey) => {
+    merged[fixtureKey] = { ...(base[fixtureKey] || {}) };
+  });
+  updateKeys.forEach((fixtureKey) => {
+    if (!merged[fixtureKey]) merged[fixtureKey] = {};
+    const rows = updates[fixtureKey] || {};
+    Object.keys(rows || {}).forEach((rowNo) => {
+      const incomingRow = rows?.[rowNo];
+      const existingRow = merged[fixtureKey]?.[rowNo] || {};
+      if (incomingRow && typeof incomingRow === "object") {
+        const nextRow = { ...existingRow };
+        Object.keys(incomingRow).forEach((key) => {
+          if (Object.prototype.hasOwnProperty.call(incomingRow, key)) {
+            nextRow[key] = incomingRow[key];
+          }
+        });
+        merged[fixtureKey][rowNo] = nextRow;
+      } else {
+        merged[fixtureKey][rowNo] = incomingRow;
+      }
+    });
+  });
+  return merged;
 }
 
 export async function deleteTournament(id) {
