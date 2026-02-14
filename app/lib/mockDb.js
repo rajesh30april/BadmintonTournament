@@ -208,7 +208,14 @@ export function listLiveMatches(tournamentId) {
   return liveMatches.filter((m) => m.tournamentId === tournamentId);
 }
 
-export function startLiveMatch(tournamentId, fixtureKey, rowId, rowLabel, rowIndex) {
+export function startLiveMatch(
+  tournamentId,
+  fixtureKey,
+  rowId,
+  rowLabel,
+  rowIndex,
+  startedBy
+) {
   if (!tournamentId || !fixtureKey || !rowId) return null;
   const idx = liveMatches.findIndex(
     (m) =>
@@ -223,6 +230,7 @@ export function startLiveMatch(tournamentId, fixtureKey, rowId, rowLabel, rowInd
     rowId: String(rowId),
     rowLabel: rowLabel || "",
     rowIndex: Number.isFinite(rowIndex) ? rowIndex : 0,
+    startedBy: startedBy || "",
     startedAt: now(),
   };
   if (idx === -1) {
@@ -231,7 +239,12 @@ export function startLiveMatch(tournamentId, fixtureKey, rowId, rowLabel, rowInd
   }
   liveMatches = [
     ...liveMatches.slice(0, idx),
-    { ...liveMatches[idx], rowLabel: entry.rowLabel, rowIndex: entry.rowIndex },
+    {
+      ...liveMatches[idx],
+      rowLabel: entry.rowLabel,
+      rowIndex: entry.rowIndex,
+      startedBy: entry.startedBy || liveMatches[idx].startedBy || "",
+    },
     ...liveMatches.slice(idx + 1),
   ];
   return liveMatches[idx];

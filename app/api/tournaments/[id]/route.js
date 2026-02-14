@@ -44,7 +44,10 @@ export async function PUT(request, { params }) {
     const { id } = await params;
     const updated =
       session?.role !== "admin" && session?.access === "score"
-        ? await updateTournamentScoresOnly(id, payload.scores, payload.updatedBy)
+        ? await updateTournamentScoresOnly(id, payload.scores, payload.updatedBy, {
+            restrictToLiveOwner: true,
+            scoreUser: session?.username || payload.updatedBy || "",
+          })
         : await updateTournament(id, payload);
     if (!updated) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });

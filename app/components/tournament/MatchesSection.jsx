@@ -275,15 +275,20 @@ export default function MatchesSection({
         })
       : false;
 
-  const liveMatchIsSelected = Boolean(
-    activeFixture &&
-      selectedRowId &&
-      (liveMatches || []).some(
-        (m) =>
-          m.fixtureKey === activeFixture.key &&
-          String(m.rowId) === String(selectedRowId)
-      )
-  );
+  const liveEntry =
+    activeFixture && selectedRowId
+      ? (liveMatches || []).find(
+          (m) =>
+            m.fixtureKey === activeFixture.key &&
+            String(m.rowId) === String(selectedRowId)
+        )
+      : null;
+  const liveMatchIsSelected = Boolean(liveEntry);
+  const isLiveOwner =
+    liveEntry &&
+    (!liveEntry.startedBy || liveEntry.startedBy === currentUser?.username);
+  const canControlLive = !readOnly && (!liveEntry || isLiveOwner);
+  const canEditScores = !readOnly && liveMatchIsSelected && isLiveOwner;
 
   useEffect(() => {
     if (tournamentType !== "doubles" || !selectedFixture) return;
@@ -551,11 +556,17 @@ export default function MatchesSection({
                                         onStartLiveMatch(fx.key, row.id);
                                       }
                                     }}
-                                    disabled={readOnly}
+                                    disabled={!canControlLive}
                                     className="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                                   >
                                     {liveMatchIsSelected ? "Stop" : "Start"}
                                   </button>
+                                  {liveEntry?.startedBy &&
+                                  liveEntry.startedBy !== currentUser?.username ? (
+                                    <span className="text-[11px] text-slate-500">
+                                      Live by {liveEntry.startedBy}
+                                    </span>
+                                  ) : null}
                                 </div>
                               </div>
                               <div className="p-3 grid gap-2">
@@ -602,7 +613,7 @@ export default function MatchesSection({
                                               e.target.value
                                             )
                                           }
-                                          disabled={readOnly}
+                                          disabled={!canEditScores}
                                         >
                                           <option value="">
                                             Select {cat1} Player
@@ -624,7 +635,7 @@ export default function MatchesSection({
                                                 e.target.value
                                               )
                                             }
-                                            disabled={readOnly}
+                                            disabled={!canEditScores}
                                           >
                                             <option value="">
                                               Select {sameCat ? cat1 : cat2} Player
@@ -672,7 +683,7 @@ export default function MatchesSection({
                                               e.target.value
                                             )
                                           }
-                                          disabled={readOnly}
+                                          disabled={!canEditScores}
                                         >
                                           <option value="">
                                             Select {cat1} Player
@@ -694,7 +705,7 @@ export default function MatchesSection({
                                                 e.target.value
                                               )
                                             }
-                                            disabled={readOnly}
+                                            disabled={!canEditScores}
                                           >
                                             <option value="">
                                               Select {sameCat ? cat1 : cat2} Player
@@ -731,7 +742,7 @@ export default function MatchesSection({
                                           e.target.value
                                         )
                                       }
-                                      disabled={readOnly}
+                                      disabled={!canEditScores}
                                     />
                                   </div>
                                   <div>
@@ -749,7 +760,7 @@ export default function MatchesSection({
                                           e.target.value
                                         )
                                       }
-                                      disabled={readOnly}
+                                      disabled={!canEditScores}
                                     />
                                   </div>
                                 </div>
@@ -768,7 +779,7 @@ export default function MatchesSection({
                                         e.target.value
                                       )
                                     }
-                                    disabled={readOnly}
+                                    disabled={!canEditScores}
                                   >
                                     <option value="">Select Winner</option>
                                     <option value="t1">{t1}</option>

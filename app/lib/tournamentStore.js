@@ -105,6 +105,7 @@ export async function getTournament(id) {
       rowId: String(m.rowId),
       rowLabel: m.rowLabel || "",
       rowIndex: m.rowIndex || 0,
+      startedBy: m.startedBy || "",
       startedAt: m.startedAt,
     })),
     scores,
@@ -224,6 +225,7 @@ export async function listLiveMatches(tournamentId) {
     rowId: String(m.rowId),
     rowLabel: m.rowLabel || "",
     rowIndex: m.rowIndex || 0,
+    startedBy: m.startedBy || "",
     startedAt: m.startedAt,
   }));
 }
@@ -233,11 +235,19 @@ export async function startLiveMatch(
   fixtureKey,
   rowId,
   rowLabel,
-  rowIndex
+  rowIndex,
+  startedBy
 ) {
   if (!tournamentId || !fixtureKey || !rowId) return null;
   if (useMock()) {
-    return startLiveMatchMock(tournamentId, fixtureKey, rowId, rowLabel, rowIndex);
+    return startLiveMatchMock(
+      tournamentId,
+      fixtureKey,
+      rowId,
+      rowLabel,
+      rowIndex,
+      startedBy
+    );
   }
   const prisma = await getPrisma();
   return prisma.liveMatch.upsert({
@@ -254,10 +264,12 @@ export async function startLiveMatch(
       rowId: String(rowId),
       rowLabel: rowLabel || null,
       rowIndex: Number.isFinite(rowIndex) ? rowIndex : 0,
+      startedBy: startedBy || null,
     },
     update: {
       rowLabel: rowLabel || null,
       rowIndex: Number.isFinite(rowIndex) ? rowIndex : 0,
+      startedBy: startedBy || null,
     },
   });
 }
@@ -355,13 +367,24 @@ export async function updateTournament(id, payload) {
   return getTournament(id);
 }
 
-export async function updateTournamentScoresOnly(id, scores, updatedBy) {
+export async function updateTournamentScoresOnly(
+  id,
+  scores,
+  updatedBy,
+  options = {}
+) {
   if (!id) return null;
   const incomingScores = scores || {};
+  const restrictToLiveOwner = options?.restrictToLiveOwner === true;
+  const scoreUser = options?.scoreUser || updatedBy || "";
   if (useMock()) {
     const existing = getMock(id);
     if (!existing) return null;
-    const merged = mergeScores(existing.scores || {}, incomingScores);
+    const filteredScores =
+      restrictToLiveOwner && scoreUser
+        ? filterScoresByLiveOwner(incomingScores, existing.liveMatches || [], scoreUser)
+        : incomingScores;
+    const merged = mergeScores(existing.scores || {}, filteredScores);
     return updateMock(id, {
       scores: merged,
       updatedBy: updatedBy || null,
@@ -374,7 +397,15 @@ export async function updateTournamentScoresOnly(id, scores, updatedBy) {
   });
   if (!existing) return null;
   const current = await getTournament(id);
-  const mergedScores = mergeScores(current?.scores || {}, incomingScores);
+  const filteredScores =
+    restrictToLiveOwner && scoreUser
+      ? filterScoresByLiveOwner(
+          incomingScores,
+          current?.liveMatches || [],
+          scoreUser
+        )
+      : incomingScores;
+  const mergedScores = mergeScores(current?.scores || {}, filteredScores);
   await prisma.$transaction(async (tx) => {
     await tx.matchResult.deleteMany({ where: { tournamentId: id } });
     const results = buildResultsFromScores(id, mergedScores);
@@ -417,6 +448,25 @@ function mergeScores(base, updates) {
     });
   });
   return merged;
+}
+
+function filterScoresByLiveOwner(scores, liveMatches, scoreUser) {
+  if (!scores || typeof scores !== "object") return {};
+  const allowed = new Set(
+    (liveMatches || [])
+      .filter((m) => !m.startedBy || m.startedBy === scoreUser)
+      .map((m) => `${m.fixtureKey}__${String(m.rowId)}`)
+  );
+  const filtered = {};
+  Object.keys(scores || {}).forEach((fixtureKey) => {
+    const rows = scores[fixtureKey] || {};
+    Object.keys(rows || {}).forEach((rowId) => {
+      if (!allowed.has(`${fixtureKey}__${String(rowId)}`)) return;
+      if (!filtered[fixtureKey]) filtered[fixtureKey] = {};
+      filtered[fixtureKey][rowId] = rows[rowId];
+    });
+  });
+  return filtered;
 }
 
 export async function deleteTournament(id) {

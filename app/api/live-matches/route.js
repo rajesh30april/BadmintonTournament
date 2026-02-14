@@ -4,6 +4,7 @@ import {
   startLiveMatch,
   stopLiveMatch,
 } from "../../lib/tournamentStore";
+import { requireScoreOrWrite } from "../../lib/auth";
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
@@ -16,6 +17,11 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
+  const guard = requireScoreOrWrite(request);
+  if (guard.error) {
+    return NextResponse.json({ error: guard.error }, { status: guard.status });
+  }
+  const session = guard.session;
   const payload = await request.json().catch(() => ({}));
   const { tournamentId, fixtureKey, rowId, rowLabel, rowIndex } = payload || {};
   if (!tournamentId || !fixtureKey || !rowId) {
@@ -29,13 +35,18 @@ export async function POST(request) {
     fixtureKey,
     rowId,
     rowLabel,
-    rowIndex
+    rowIndex,
+    session?.username || ""
   );
   const data = await listLiveMatches(tournamentId);
   return NextResponse.json({ data });
 }
 
 export async function DELETE(request) {
+  const guard = requireScoreOrWrite(request);
+  if (guard.error) {
+    return NextResponse.json({ error: guard.error }, { status: guard.status });
+  }
   const payload = await request.json().catch(() => ({}));
   const { tournamentId, fixtureKey, rowId } = payload || {};
   if (!tournamentId || !fixtureKey || !rowId) {

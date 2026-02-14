@@ -511,6 +511,10 @@ export default function Page() {
     tournaments.find((t) => t.id === selectedTournamentId) || null;
   const isScorer =
     currentUser?.role !== "admin" && currentUser?.access === "score";
+  const ownedLiveMatches = liveMatches.filter(
+    (m) => !m.startedBy || m.startedBy === currentUser?.username
+  );
+  const canSaveScores = ownedLiveMatches.length > 0;
   const canComment =
     currentUser?.role === "admin" ||
     currentUser?.access === "write" ||
@@ -535,6 +539,7 @@ export default function Page() {
       rowId: String(rowId),
       rowLabel: row?.label || "",
       rowIndex,
+      startedBy: currentUser?.username || "",
       startedAt: new Date().toISOString(),
     };
     if (!selectedTournamentId) {
@@ -601,7 +606,8 @@ export default function Page() {
     (currentUser?.role === "admin" ||
       currentUser?.access === "write" ||
       currentUser?.access === "score");
-  const canSave = canUpdate && (!isScorer || tab === "matches");
+  const canSave =
+    canUpdate && (!isScorer || (tab === "matches" && canSaveScores));
   const canEditStructure =
     currentUser?.role === "admin" || currentUser?.access === "write";
   const tabs = ["standings", "reports", "matches", "setup", "profiles"];
