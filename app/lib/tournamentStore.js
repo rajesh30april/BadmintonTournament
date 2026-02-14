@@ -384,6 +384,9 @@ export async function updateTournamentScoresOnly(
       restrictToLiveOwner && scoreUser
         ? filterScoresByLiveOwner(incomingScores, existing.liveMatches || [], scoreUser)
         : incomingScores;
+    if (!Object.keys(filteredScores || {}).length) {
+      return existing;
+    }
     const merged = mergeScores(existing.scores || {}, filteredScores);
     return updateMock(id, {
       scores: merged,
@@ -396,21 +399,62 @@ export async function updateTournamentScoresOnly(
     select: { id: true },
   });
   if (!existing) return null;
-  const current = await getTournament(id);
+  let liveMatches = [];
+  if (restrictToLiveOwner && scoreUser) {
+    liveMatches = await prisma.liveMatch.findMany({
+      where: { tournamentId: id },
+      select: { fixtureKey: true, rowId: true, startedBy: true },
+    });
+  }
   const filteredScores =
     restrictToLiveOwner && scoreUser
-      ? filterScoresByLiveOwner(
-          incomingScores,
-          current?.liveMatches || [],
-          scoreUser
-        )
+      ? filterScoresByLiveOwner(incomingScores, liveMatches || [], scoreUser)
       : incomingScores;
-  const mergedScores = mergeScores(current?.scores || {}, filteredScores);
+  if (!Object.keys(filteredScores || {}).length) {
+    return getTournament(id);
+  }
   await prisma.$transaction(async (tx) => {
-    await tx.matchResult.deleteMany({ where: { tournamentId: id } });
-    const results = buildResultsFromScores(id, mergedScores);
-    if (results.length) {
-      await tx.matchResult.createMany({ data: results });
+    const updates = [];
+    Object.keys(filteredScores || {}).forEach((fixtureKey) => {
+      const rows = filteredScores[fixtureKey] || {};
+      Object.keys(rows || {}).forEach((rowNo) => {
+        const row = rows[rowNo] || {};
+        const numericRow = Number(rowNo);
+        if (!Number.isFinite(numericRow)) return;
+        const toScore = (value) => {
+          if (value === "" || value === null || value === undefined) return null;
+          const num = Number(value);
+          return Number.isFinite(num) ? num : null;
+        };
+        const data = {
+          tournamentId: id,
+          fixtureKey,
+          rowNo: numericRow,
+          t1Player1: row.t1Player1 || null,
+          t1Player2: row.t1Player2 || null,
+          t2Player1: row.t2Player1 || null,
+          t2Player2: row.t2Player2 || null,
+          t1Score: toScore(row.t1),
+          t2Score: toScore(row.t2),
+          winner: row.winner || null,
+        };
+        updates.push(
+          tx.matchResult.upsert({
+            where: {
+              tournamentId_fixtureKey_rowNo: {
+                tournamentId: id,
+                fixtureKey,
+                rowNo: numericRow,
+              },
+            },
+            create: data,
+            update: data,
+          })
+        );
+      });
+    });
+    if (updates.length) {
+      await Promise.all(updates);
     }
     await tx.tournament.update({
       where: { id },
