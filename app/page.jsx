@@ -48,6 +48,7 @@ export default function Page() {
   // Matches & scoring
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [scores, setScores] = useState({});
+  const [dirtyScores, setDirtyScores] = useState({});
   const [manualFixtures, setManualFixtures] = useState([]);
   const [newFixtureT1, setNewFixtureT1] = useState("");
   const [newFixtureT2, setNewFixtureT2] = useState("");
@@ -288,6 +289,7 @@ export default function Page() {
     setSetupTab(next === "team" ? "categories" : "teams");
     setSelectedMatch(null);
     setScores({});
+    setDirtyScores({});
     setManualFixtures([]);
     setNewFixtureT1("");
     setNewFixtureT2("");
@@ -305,7 +307,7 @@ export default function Page() {
     );
   };
 
-  const upsertScore = (matchKey, matchNo, field, value) => {
+  const upsertScore = (matchKey, matchNo, field, value, markDirty = true) => {
     setScores((prev) => ({
       ...prev,
       [matchKey]: {
@@ -313,6 +315,28 @@ export default function Page() {
         [matchNo]: { ...(prev[matchKey]?.[matchNo] || {}), [field]: value },
       },
     }));
+    if (markDirty) {
+      setDirtyScores((prev) => ({
+        ...prev,
+        [matchKey]: {
+          ...(prev[matchKey] || {}),
+          [matchNo]: true,
+        },
+      }));
+    }
+  };
+  const buildDirtyScoresPayload = () => {
+    const payload = {};
+    Object.keys(dirtyScores || {}).forEach((fixtureKey) => {
+      const rows = dirtyScores[fixtureKey] || {};
+      Object.keys(rows || {}).forEach((rowId) => {
+        const rowScore = scores?.[fixtureKey]?.[rowId];
+        if (!rowScore) return;
+        if (!payload[fixtureKey]) payload[fixtureKey] = {};
+        payload[fixtureKey][rowId] = rowScore;
+      });
+    });
+    return payload;
   };
 
   const standings = useMemo(() => {
@@ -480,6 +504,7 @@ export default function Page() {
       setMatchTypeConfig(record.matchTypeConfig || {});
       setTeams(Array.isArray(record.teams) ? record.teams : []);
       setScores(record.scores || {});
+      setDirtyScores({});
       setManualFixtures(Array.isArray(record.fixtures) ? record.fixtures : []);
       setSelectedMatch(null);
       setLiveMatches(Array.isArray(record.liveMatches) ? record.liveMatches : []);
@@ -652,6 +677,7 @@ export default function Page() {
         setSelectedTournamentId(created.id);
       }
       await refreshTournaments();
+      setDirtyScores({});
     } catch (err) {
       setLoadError(err.message || "Failed to save tournament.");
     } finally {
@@ -694,6 +720,7 @@ export default function Page() {
       setMatchTypeConfig({});
       setTeams([]);
       setScores({});
+      setDirtyScores({});
       setManualFixtures([]);
       setSelectedMatch(null);
       await refreshTournaments();
@@ -712,19 +739,25 @@ export default function Page() {
     setLoadSuccess("");
     try {
       const fixturesPayload = isTeamType ? buildFixtures(teams) : manualFixtures;
-      const payload =
-        currentUser?.role !== "admin" && currentUser?.access === "score"
-          ? { scores, updatedBy: currentUser?.username || null }
-          : {
-              name: tournamentName || "Untitled Tournament",
-              type: tournamentType,
-              categories,
-              matchTypeConfig,
-              teams,
-              scores,
-              fixtures: fixturesPayload,
-              updatedBy: currentUser?.username || null,
-            };
+      const isScoreOnlyTab = tab === "matches";
+      const scorePayload = buildDirtyScoresPayload();
+      if (isScoreOnlyTab && !Object.keys(scorePayload).length) {
+        setLoadSuccess("No score changes to save.");
+        setSavingTournament(false);
+        return;
+      }
+      const payload = isScoreOnlyTab
+        ? { scores: scorePayload, updatedBy: currentUser?.username || null }
+        : {
+            name: tournamentName || "Untitled Tournament",
+            type: tournamentType,
+            categories,
+            matchTypeConfig,
+            teams,
+            scores,
+            fixtures: fixturesPayload,
+            updatedBy: currentUser?.username || null,
+          };
       const res = await fetch(`/api/tournaments/${selectedTournamentId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -736,6 +769,9 @@ export default function Page() {
       }
       await refreshTournaments();
       setLoadSuccess("Tournament updated.");
+      if (isScoreOnlyTab) {
+        setDirtyScores({});
+      }
     } catch (err) {
       setLoadError(err.message || "Failed to update tournament.");
     } finally {
@@ -771,6 +807,7 @@ export default function Page() {
       setMatchTypeConfig({});
       setTeams([]);
       setScores({});
+      setDirtyScores({});
       setManualFixtures([]);
       setSelectedMatch(null);
       await refreshTournaments();

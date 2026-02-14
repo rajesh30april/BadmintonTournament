@@ -311,10 +311,10 @@ export default function MatchesSection({
       ) {
         return;
       }
-      if (t1p1) upsertScore(fx.key, row.id, "t1Player1", t1p1);
-      if (t1p2) upsertScore(fx.key, row.id, "t1Player2", t1p2);
-      if (t2p1) upsertScore(fx.key, row.id, "t2Player1", t2p1);
-      if (t2p2) upsertScore(fx.key, row.id, "t2Player2", t2p2);
+      if (t1p1) upsertScore(fx.key, row.id, "t1Player1", t1p1, false);
+      if (t1p2) upsertScore(fx.key, row.id, "t1Player2", t1p2, false);
+      if (t2p1) upsertScore(fx.key, row.id, "t2Player1", t2p1, false);
+      if (t2p2) upsertScore(fx.key, row.id, "t2Player2", t2p2, false);
     });
   }, [tournamentType, selectedFixture, safeMatchRows, scores, upsertScore, teamByName]);
 
