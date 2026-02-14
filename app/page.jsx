@@ -57,6 +57,7 @@ export default function Page() {
   const [matchLikes, setMatchLikes] = useState([]);
   const [liveMatches, setLiveMatches] = useState([]);
   const [matchFocus, setMatchFocus] = useState(null);
+  const [savingRows, setSavingRows] = useState({});
 
   const isTeamType = tournamentType === "team";
 
@@ -779,6 +780,59 @@ export default function Page() {
     }
   };
 
+  const saveMatchRow = async (fixtureKey, rowId) => {
+    if (!selectedTournamentId || !fixtureKey || !rowId) return;
+    const key = `${fixtureKey}__${rowId}`;
+    const rowScore = scores?.[fixtureKey]?.[rowId];
+    if (!rowScore) {
+      setLoadError("No score data to save.");
+      return;
+    }
+    setSavingRows((prev) => ({ ...prev, [key]: true }));
+    setLoadError("");
+    setLoadSuccess("");
+    try {
+      const payload = {
+        scores: {
+          [fixtureKey]: {
+            [rowId]: rowScore,
+          },
+        },
+        updatedBy: currentUser?.username || null,
+      };
+      const res = await fetch(`/api/tournaments/${selectedTournamentId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error || "Failed to save match.");
+      }
+      setDirtyScores((prev) => {
+        if (!prev?.[fixtureKey]?.[rowId]) return prev;
+        const next = { ...prev };
+        const rows = { ...(next[fixtureKey] || {}) };
+        delete rows[rowId];
+        if (Object.keys(rows).length) {
+          next[fixtureKey] = rows;
+        } else {
+          delete next[fixtureKey];
+        }
+        return next;
+      });
+      setLoadSuccess("Match saved.");
+    } catch (err) {
+      setLoadError(err.message || "Failed to save match.");
+    } finally {
+      setSavingRows((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+    }
+  };
+
   const handleLogout = async () => {
     await fetch("/api/logout", { method: "POST" });
     window.location.href = "/login";
@@ -1146,6 +1200,8 @@ export default function Page() {
               liveMatches={liveMatches}
               onStartLiveMatch={startLiveMatch}
               onStopLiveMatch={stopLiveMatch}
+              onSaveMatchRow={saveMatchRow}
+              savingRows={savingRows}
               focusMatch={matchFocus}
               onFocusApplied={() => setMatchFocus(null)}
               readOnly={

@@ -23,6 +23,8 @@ export default function MatchesSection({
   liveMatches = [],
   onStartLiveMatch = () => {},
   onStopLiveMatch = () => {},
+  onSaveMatchRow = () => {},
+  savingRows = {},
   focusMatch = null,
   onFocusApplied = () => {},
   readOnly = false,
@@ -289,6 +291,11 @@ export default function MatchesSection({
     (!liveEntry.startedBy || liveEntry.startedBy === currentUser?.username);
   const canControlLive = !readOnly && (!liveEntry || isLiveOwner);
   const canEditScores = !readOnly && liveMatchIsSelected && isLiveOwner;
+  const saveKey =
+    activeFixture && selectedRowId
+      ? `${activeFixture.key}__${String(selectedRowId)}`
+      : "";
+  const isSavingRow = saveKey ? Boolean(savingRows?.[saveKey]) : false;
 
   useEffect(() => {
     if (tournamentType !== "doubles" || !selectedFixture) return;
@@ -560,6 +567,14 @@ export default function MatchesSection({
                                     className="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                                   >
                                     {liveMatchIsSelected ? "Stop" : "Start"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => onSaveMatchRow(fx.key, row.id)}
+                                    disabled={!canEditScores || isSavingRow}
+                                    className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+                                  >
+                                    {isSavingRow ? "Saving..." : "Save"}
                                   </button>
                                   {liveEntry?.startedBy &&
                                   liveEntry.startedBy !== currentUser?.username ? (
