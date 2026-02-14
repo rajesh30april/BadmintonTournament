@@ -1091,14 +1091,20 @@ export default function Page() {
                   <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 inline-flex h-4 w-4 animate-spin rounded-full border-2 border-slate-400 border-t-transparent" />
                 ) : null}
               </div>
-              <Button
-                onClick={updateTournament}
-                disabled={!canSave}
-                loading={savingTournament}
-                className="w-full"
-              >
-                Save
-              </Button>
+              {tab === "matches" ? (
+                <div className="w-full text-right text-xs text-slate-500">
+                  Use per‑match Save
+                </div>
+              ) : (
+                <Button
+                  onClick={updateTournament}
+                  disabled={!canSave}
+                  loading={savingTournament}
+                  className="w-full"
+                >
+                  Save
+                </Button>
+              )}
             </div>
           }
         />
