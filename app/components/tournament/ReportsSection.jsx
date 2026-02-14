@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Card, CardContent, Input } from "../ui";
+import { useEffect, useMemo, useState } from "react";
+import { Card, CardContent, Input, Select } from "../ui";
 
 export default function ReportsSection({
   fixtures = [],
@@ -8,6 +8,7 @@ export default function ReportsSection({
   matchRows = [],
 }) {
   const [query, setQuery] = useState("");
+  const [selectedTeams, setSelectedTeams] = useState([]);
   const normalizedQuery = query.trim().toLowerCase();
   const teamStats = new Map();
   const playerStats = new Map();
@@ -23,6 +24,22 @@ export default function ReportsSection({
     });
     return map;
   }, [matchRows]);
+  const teamOptions = useMemo(
+    () =>
+      (teams || [])
+        .map((t) => t.name)
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b)),
+    [teams]
+  );
+  useEffect(() => {
+    if (!selectedTeams.length) return;
+    const valid = new Set(teamOptions);
+    const next = selectedTeams.filter((t) => valid.has(t));
+    if (next.length !== selectedTeams.length) {
+      setSelectedTeams(next);
+    }
+  }, [teamOptions, selectedTeams]);
 
   const getTeam = (name) => {
     if (!teamStats.has(name)) {
@@ -242,19 +259,35 @@ export default function ReportsSection({
 
   const filterByQuery = (text) =>
     !normalizedQuery || text.toLowerCase().includes(normalizedQuery);
-  const filteredTeams = normalizedQuery
-    ? teamRows.filter((row) => filterByQuery(row.team))
+  const hasTeamFilter = selectedTeams.length > 0;
+  const selectedSet = new Set(selectedTeams);
+  const filteredTeamsBase = hasTeamFilter
+    ? teamRows.filter((row) => selectedSet.has(row.team))
     : teamRows;
+  const filteredHeadBase = hasTeamFilter
+    ? headRows.filter((row) => {
+        if (selectedTeams.length === 1) {
+          return row.t1 === selectedTeams[0] || row.t2 === selectedTeams[0];
+        }
+        return selectedSet.has(row.t1) && selectedSet.has(row.t2);
+      })
+    : headRows;
+  const filteredPlayersBase = hasTeamFilter
+    ? playerRows.filter((row) => selectedSet.has(row.team))
+    : playerRows;
+  const filteredTeams = normalizedQuery
+    ? filteredTeamsBase.filter((row) => filterByQuery(row.team))
+    : filteredTeamsBase;
   const filteredHead = normalizedQuery
-    ? headRows.filter(
+    ? filteredHeadBase.filter(
         (row) => filterByQuery(row.t1) || filterByQuery(row.t2)
       )
-    : headRows;
+    : filteredHeadBase;
   const filteredPlayers = normalizedQuery
-    ? playerRows.filter(
+    ? filteredPlayersBase.filter(
         (row) => filterByQuery(row.name) || filterByQuery(row.team)
       )
-    : playerRows;
+    : filteredPlayersBase;
 
   return (
     <div className="grid gap-4">
@@ -262,11 +295,40 @@ export default function ReportsSection({
 
       <Card>
         <CardContent>
-          <Input
-            placeholder="Search teams or players"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
+          <div className="grid gap-3">
+            <div className="text-xs font-semibold text-slate-600">
+              Filter by teams
+            </div>
+            <Select
+              multiple
+              size={Math.min(6, Math.max(3, teamOptions.length || 3))}
+              value={selectedTeams}
+              onChange={(e) => {
+                const values = Array.from(e.target.selectedOptions).map(
+                  (opt) => opt.value
+                );
+                setSelectedTeams(values);
+              }}
+              className="min-h-[110px]"
+            >
+              {teamOptions.length ? (
+                teamOptions.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))
+              ) : (
+                <option disabled value="">
+                  No teams yet
+                </option>
+              )}
+            </Select>
+            <Input
+              placeholder="Search teams or players"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </div>
         </CardContent>
       </Card>
 
