@@ -554,34 +554,36 @@ export default function MatchesSection({
                                   <span>
                                     {rowDisplayLabel(row)}
                                   </span>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      if (liveMatchIsSelected) {
-                                        onStopLiveMatch(fx.key, row.id);
-                                      } else {
-                                        onStartLiveMatch(fx.key, row.id);
-                                      }
-                                    }}
-                                    disabled={!canControlLive}
-                                    className="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-                                  >
-                                    {liveMatchIsSelected ? "Stop" : "Start"}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => onSaveMatchRow(fx.key, row.id)}
-                                    disabled={!canEditScores || isSavingRow}
-                                    className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
-                                  >
-                                    {isSavingRow ? "Saving..." : "Save"}
-                                  </button>
-                                  {liveEntry?.startedBy &&
-                                  liveEntry.startedBy !== currentUser?.username ? (
-                                    <span className="text-[11px] text-slate-500">
-                                      Live by {liveEntry.startedBy}
-                                    </span>
-                                  ) : null}
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (liveMatchIsSelected) {
+                                          onStopLiveMatch(fx.key, row.id);
+                                        } else {
+                                          onStartLiveMatch(fx.key, row.id);
+                                        }
+                                      }}
+                                      disabled={!canControlLive}
+                                      className="h-7 rounded-full border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                      {liveMatchIsSelected ? "Stop" : "Start"}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => onSaveMatchRow(fx.key, row.id)}
+                                      disabled={!canEditScores || isSavingRow}
+                                      className="h-7 rounded-full bg-slate-900 px-3 text-xs font-semibold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                      {isSavingRow ? "Saving..." : "Save"}
+                                    </button>
+                                    {liveEntry?.startedBy &&
+                                    liveEntry.startedBy !== currentUser?.username ? (
+                                      <span className="text-[11px] text-slate-500">
+                                        Live by {liveEntry.startedBy}
+                                      </span>
+                                    ) : null}
+                                  </div>
                                 </div>
                               </div>
                               <div className="p-3 grid gap-2">
